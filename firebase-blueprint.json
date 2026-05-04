@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile linking the Firebase auth user to their reader name.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The reader name used to filter readings."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address."
+        },
+        "createdAt": {
+          "type": "timestamp"
+        },
+        "updatedAt": {
+          "type": "timestamp"
+        }
+      },
+      "required": ["name", "email", "createdAt", "updatedAt"]
+    },
+    "Insight": {
+      "title": "Insight",
+      "description": "A saved AI Oracle interpretation for a reading.",
+      "type": "object",
+      "properties": {
+        "readingId": {
+          "type": "string",
+          "description": "The ID of the reading this insight belongs to."
+        },
+        "insightKey": {
+          "type": "string",
+          "description": "The cache key (e.g. card-id-pos) generated for this insight."
+        },
+        "text": {
+          "type": "string",
+          "description": "The insight content."
+        },
+        "createdAt": {
+          "type": "timestamp"
+        },
+        "updatedAt": {
+          "type": "timestamp"
+        }
+      },
+      "required": ["readingId", "insightKey", "text", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "The profile data of the users."
+    },
+    "users/{userId}/insights/{insightId}": {
+      "schema": {
+        "$ref": "#/entities/Insight"
+      },
+      "description": "Saved Oracle Insights by this user."
+    }
+  }
+}
