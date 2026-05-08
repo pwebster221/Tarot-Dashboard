@@ -284,6 +284,7 @@ export default function App() {
              </div>
              <div className="flex-1 overflow-auto relative">
                 <SpreadVisualizer 
+                   readingId={selectedReading.id}
                    drawnCards={selectedReading.drawnCards}
                    selectedCardId={selectedCardId}
                    onCardClick={handleCardClick}
@@ -402,8 +403,7 @@ export default function App() {
           <span className="hidden sm:inline">Latency: {selectedReading ? (fetchingDetail ? '...' : '12ms') : '42ms'}</span>
         </div>
         <div className="flex gap-4">
-          <span className="hover:text-[#FFFAE3] transition-colors cursor-pointer hidden sm:inline">System Logs</span>
-          <span className="hover:text-[#FFFAE3] transition-colors cursor-pointer hidden sm:inline">Security Protocol</span>
+          <a href="https://pathsofreverence.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#FFFAE3] transition-colors hidden sm:inline">Paths of Reverence</a>
           <span>© 2026 Esoteric Systems</span>
         </div>
       </footer>

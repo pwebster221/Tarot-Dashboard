@@ -31,6 +31,15 @@ service cloud.firestore {
             && data.updatedAt == request.time;
     }
 
+    function isValidNote(data) {
+        return data.keys().hasAll(['readingId', 'positionId', 'text', 'updatedAt'])
+            && data.keys().size() == 4
+            && data.readingId is string && data.readingId.size() > 0 && data.readingId.size() <= 128
+            && data.positionId is string && data.positionId.size() > 0 && data.positionId.size() <= 128
+            && data.text is string && data.text.size() > 0 && data.text.size() <= 10000
+            && data.updatedAt == request.time;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
       
@@ -53,7 +62,7 @@ service cloud.firestore {
 
       match /insights/{insightId} {
         allow read, list: if isSignedIn() && request.auth.uid == userId;
-        
+
         allow create: if isSignedIn()
           && request.auth.uid == userId
           && isValidId(insightId)
@@ -68,6 +77,24 @@ service cloud.firestore {
           && incoming().readingId == existing().readingId
           && incoming().insightKey == existing().insightKey
           && incoming().createdAt == existing().createdAt;
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /notes/{noteId} {
+        allow read, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn()
+          && request.auth.uid == userId
+          && isValidId(noteId)
+          && isValidNote(incoming());
+
+        allow update: if isSignedIn()
+          && request.auth.uid == userId
+          && isValidId(noteId)
+          && isValidNote(incoming())
+          && incoming().readingId == existing().readingId
+          && incoming().positionId == existing().positionId;
 
         allow delete: if isSignedIn() && request.auth.uid == userId;
       }

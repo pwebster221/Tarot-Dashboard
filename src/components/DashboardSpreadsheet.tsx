@@ -1,24 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Reading } from '../types';
 import { Sparkles, Loader2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { generateTrendInsight as getTrendInsight } from '../lib/ai';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { useAuth } from '../lib/AuthContext';
 
 interface DashboardSpreadsheetProps {
   readings: Reading[];
 }
 
+const TREND_DOC_ID = '__trend__latest';
+const TREND_READING_ID = '__trend__';
+const TREND_INSIGHT_KEY = 'latest';
+
 export function DashboardSpreadsheet({ readings }: DashboardSpreadsheetProps) {
+  const { currentUser } = useAuth();
   const [insight, setInsight] = useState<string | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    (async () => {
+      try {
+        const ref = doc(db, 'users', currentUser.uid, 'insights', TREND_DOC_ID);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          const data = snap.data();
+          setInsight(data.text ?? null);
+          const ts = data.updatedAt as Timestamp | undefined;
+          setGeneratedAt(ts ? ts.toDate() : null);
+        }
+      } catch (err) {
+        console.error('Failed to load saved trend insight', err);
+      }
+    })();
+  }, [currentUser]);
+
   const generateTrendInsight = async () => {
+    if (!currentUser) {
+      setError('You must be signed in to generate insights.');
+      return;
+    }
     setGenerating(true);
     setError(null);
     try {
       const result = await getTrendInsight(readings.slice(0, 50));
       setInsight(result);
+      setGeneratedAt(new Date());
+
+      const ref = doc(db, 'users', currentUser.uid, 'insights', TREND_DOC_ID);
+      const existing = await getDoc(ref);
+      if (existing.exists()) {
+        await updateDoc(ref, { text: result, updatedAt: serverTimestamp() });
+      } else {
+        await setDoc(ref, {
+          readingId: TREND_READING_ID,
+          insightKey: TREND_INSIGHT_KEY,
+          text: result,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
     } catch (err: any) {
       setError(err.message || String(err));
     } finally {
@@ -45,7 +91,14 @@ export function DashboardSpreadsheet({ readings }: DashboardSpreadsheetProps) {
 
       {insight && (
         <div className="p-6 border-b border-white/5 bg-[#2a0d4e]/40 max-h-[300px] overflow-y-auto shrink-0">
-           <h3 className="text-[#DEB564] mb-2 font-serif text-lg">Trend Insight</h3>
+           <div className="flex items-baseline gap-3 mb-2">
+             <h3 className="text-[#DEB564] font-serif text-lg">Trend Insight</h3>
+             {generatedAt && (
+               <span className="text-[10px] text-[#FFFAE3]/40 uppercase tracking-wider">
+                 Generated {generatedAt.toLocaleString()}
+               </span>
+             )}
+           </div>
            <div className="markdown-body prose prose-invert max-w-none text-sm text-amber-100/80">
               <Markdown>{insight}</Markdown>
            </div>

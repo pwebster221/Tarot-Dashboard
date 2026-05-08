@@ -53,6 +53,29 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
     loadSavedInsights();
   }, [reading?.id, currentUser]);
 
+  // Load saved notes (custom meanings)
+  useEffect(() => {
+    if (!reading || !currentUser) return;
+    const loadSavedNotes = async () => {
+      try {
+        const q = query(
+          collection(db, 'users', currentUser.uid, 'notes'),
+          where('readingId', '==', reading.id)
+        );
+        const snap = await getDocs(q);
+        const newNotes: Record<string, string> = {};
+        snap.forEach(docSnap => {
+          const data = docSnap.data();
+          newNotes[data.positionId] = data.text;
+        });
+        setCustomMeanings(newNotes);
+      } catch (err) {
+        console.error("Failed to load saved notes", err);
+      }
+    };
+    loadSavedNotes();
+  }, [reading?.id, currentUser]);
+
   const toggleSaveInsight = async (cacheKey: string, text: string) => {
     if (!currentUser || !reading) return;
     
@@ -170,9 +193,24 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                        </button>
                      ) : (
                        <button 
-                         onClick={() => {
+                         onClick={async () => {
                            setIsEditingMeaning(false);
-                           setCustomMeanings(prev => ({ ...prev, [`${reading.id}_${selectedCard.position.id}`]: editedMeaning }));
+                           const posId = `${reading.id}_${selectedCard.position.id}`;
+                           setCustomMeanings(prev => ({ ...prev, [posId]: editedMeaning }));
+                           
+                           if (currentUser) {
+                             try {
+                               const docRef = doc(db, 'users', currentUser.uid, 'notes', posId);
+                               await setDoc(docRef, {
+                                 readingId: reading.id,
+                                 positionId: posId,
+                                 text: editedMeaning,
+                                 updatedAt: serverTimestamp()
+                               });
+                             } catch (err) {
+                               console.error("Failed to save note:", err);
+                             }
+                           }
                          }}
                          className="text-[#DEB564] hover:text-[#DEB564]/80 transition-colors p-1 flex items-center gap-1"
                          title="Save meaning"

@@ -1,19 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { DrawnCard } from '../types';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useAuth } from '../lib/AuthContext';
 
 interface SpreadVisualizerProps {
+  readingId: string;
   drawnCards: DrawnCard[];
   selectedCardId: string | null;
   onCardClick: (card: DrawnCard) => void;
   spreadType: string;
 }
 
-export function SpreadVisualizer({ drawnCards, selectedCardId, onCardClick, spreadType }: SpreadVisualizerProps) {
+export function SpreadVisualizer({ readingId, drawnCards, selectedCardId, onCardClick, spreadType }: SpreadVisualizerProps) {
+  const { currentUser } = useAuth();
+  const [positions, setPositions] = useState<Record<string, { x: number, y: number }>>({});
+
+  useEffect(() => {
+    if (!currentUser || !readingId) return;
+    const fetchPositions = async () => {
+      try {
+        const docRef = doc(db, 'users', currentUser.uid, 'layouts', readingId);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          setPositions(snap.data().positions || {});
+        }
+      } catch (err) {
+        console.error("Failed to load layout positions", err);
+      }
+    };
+    fetchPositions();
+  }, [currentUser, readingId]);
+
+  const handleDragEnd = async (cardId: string, offset: { x: number, y: number }) => {
+    if (!currentUser) return;
+    const currentX = positions[cardId]?.x || 0;
+    const currentY = positions[cardId]?.y || 0;
+    
+    const newPositions = {
+      ...positions,
+      [cardId]: {
+        x: currentX + offset.x,
+        y: currentY + offset.y
+      }
+    };
+    setPositions(newPositions);
+    
+    try {
+      const docRef = doc(db, 'users', currentUser.uid, 'layouts', readingId);
+      await setDoc(docRef, { positions: newPositions }, { merge: true });
+    } catch (err) {
+      console.error("Failed to save layout positions", err);
+    }
+  };
+
+  const layoutProps = { cards: drawnCards, selectedCardId, onCardClick, positions, onDragEnd: handleDragEnd };
+
   if (spreadType === 'Celtic Cross') {
-    return <CelticCross cards={drawnCards} selectedCardId={selectedCardId} onCardClick={onCardClick} />;
+    return <CelticCross {...layoutProps} />;
   }
   if (spreadType === 'ten_card_inner_outer') {
-    return <TenCardInnerOuter cards={drawnCards} selectedCardId={selectedCardId} onCardClick={onCardClick} />;
+    return <TenCardInnerOuter {...layoutProps} />;
   }
   
   // Default simple row layout (like 3-card spread)
@@ -25,13 +73,23 @@ export function SpreadVisualizer({ drawnCards, selectedCardId, onCardClick, spre
           drawnCard={dc} 
           isSelected={selectedCardId === dc.card.id}
           onClick={() => onCardClick(dc)} 
+          position={positions[dc.card.id] || { x: 0, y: 0 }}
+          onDragEnd={(offset) => handleDragEnd(dc.card.id, offset)}
         />
       ))}
     </div>
   );
 }
 
-function CelticCross({ cards, selectedCardId, onCardClick }: { cards: DrawnCard[], selectedCardId: string | null, onCardClick: (card: DrawnCard) => void }) {
+type LayoutProps = { 
+  cards: DrawnCard[], 
+  selectedCardId: string | null, 
+  onCardClick: (card: DrawnCard) => void,
+  positions: Record<string, { x: number, y: number }>,
+  onDragEnd: (cardId: string, offset: { x: number, y: number }) => void
+};
+
+function CelticCross({ cards, selectedCardId, onCardClick, positions, onDragEnd }: LayoutProps) {
   const getCard = (posId: string) => cards.find(c => c.position.id === posId);
 
   const present = getCard('present');
@@ -46,22 +104,35 @@ function CelticCross({ cards, selectedCardId, onCardClick }: { cards: DrawnCard[
   const hopesFears = getCard('hopes_fears');
   const outcome = getCard('outcome');
 
+  const renderCard = (card: DrawnCard | undefined) => {
+    if (!card) return null;
+    return (
+      <CardVisual 
+        drawnCard={card} 
+        isSelected={selectedCardId === card.card.id} 
+        onClick={() => onCardClick(card)} 
+        position={positions[card.card.id] || { x: 0, y: 0 }}
+        onDragEnd={(offset) => onDragEnd(card.card.id, offset)}
+      />
+    );
+  };
+
   return (
     <div className="flex justify-center items-center gap-16 p-8 overflow-x-auto min-h-[600px]">
       {/* The Cross */}
       <div className="relative w-[400px] h-[500px]">
-        {above && <div className="absolute top-0 left-1/2 -translate-x-1/2"><CardVisual drawnCard={above} isSelected={selectedCardId === above.card.id} onClick={() => onCardClick(above)} /></div>}
-        {below && <div className="absolute bottom-0 left-1/2 -translate-x-1/2"><CardVisual drawnCard={below} isSelected={selectedCardId === below.card.id} onClick={() => onCardClick(below)} /></div>}
-        {past && <div className="absolute top-1/2 left-0 -translate-y-1/2"><CardVisual drawnCard={past} isSelected={selectedCardId === past.card.id} onClick={() => onCardClick(past)} /></div>}
-        {future && <div className="absolute top-1/2 right-0 -translate-y-1/2"><CardVisual drawnCard={future} isSelected={selectedCardId === future.card.id} onClick={() => onCardClick(future)} /></div>}
+        {above && <div className="absolute top-0 left-1/2 -translate-x-1/2">{renderCard(above)}</div>}
+        {below && <div className="absolute bottom-0 left-1/2 -translate-x-1/2">{renderCard(below)}</div>}
+        {past && <div className="absolute top-1/2 left-0 -translate-y-1/2">{renderCard(past)}</div>}
+        {future && <div className="absolute top-1/2 right-0 -translate-y-1/2">{renderCard(future)}</div>}
         
         {/* Center Cross */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          {present && <CardVisual drawnCard={present} isSelected={selectedCardId === present.card.id} onClick={() => onCardClick(present)} />}
+          {present && renderCard(present)}
           {challenge && (
             <div className="absolute top-0 left-0 w-full h-full rotate-90 z-10 pointer-events-none transform origin-center">
                <div className="pointer-events-auto shadow-2xl">
-                 <CardVisual drawnCard={challenge} isSelected={selectedCardId === challenge.card.id} onClick={() => onCardClick(challenge)} />
+                 {renderCard(challenge)}
                </div>
             </div>
           )}
@@ -70,23 +141,34 @@ function CelticCross({ cards, selectedCardId, onCardClick }: { cards: DrawnCard[
 
       {/* The Staff */}
       <div className="flex flex-col-reverse gap-6">
-        {advice && <CardVisual drawnCard={advice} isSelected={selectedCardId === advice.card.id} onClick={() => onCardClick(advice)} />}
-        {external && <CardVisual drawnCard={external} isSelected={selectedCardId === external.card.id} onClick={() => onCardClick(external)} />}
-        {hopesFears && <CardVisual drawnCard={hopesFears} isSelected={selectedCardId === hopesFears.card.id} onClick={() => onCardClick(hopesFears)} />}
-        {outcome && <CardVisual drawnCard={outcome} isSelected={selectedCardId === outcome.card.id} onClick={() => onCardClick(outcome)} />}
+        {advice && renderCard(advice)}
+        {external && renderCard(external)}
+        {hopesFears && renderCard(hopesFears)}
+        {outcome && renderCard(outcome)}
       </div>
     </div>
   );
 }
 
-const CardVisual: React.FC<{ drawnCard: DrawnCard, isSelected: boolean, onClick: () => void }> = ({ drawnCard, isSelected, onClick }) => {
+const CardVisual: React.FC<{ 
+  drawnCard: DrawnCard, 
+  isSelected: boolean, 
+  onClick: () => void,
+  position: { x: number, y: number },
+  onDragEnd: (offset: { x: number, y: number }) => void 
+}> = ({ drawnCard, isSelected, onClick, position, onDragEnd }) => {
   const { card } = drawnCard;
   const [imgError, setImgError] = React.useState(false);
 
   return (
-    <div 
+    <motion.div 
+      drag
+      dragMomentum={false}
+      style={{ x: position.x, y: position.y }}
+      onDragEnd={(e, info) => onDragEnd({ x: info.offset.x, y: info.offset.y })}
+      whileDrag={{ scale: 1.15, zIndex: 50, cursor: 'grabbing' }}
       onClick={onClick}
-      className={`relative w-24 h-36 bg-[#0D0D12] border-2 rounded-lg flex flex-col justify-center items-center cursor-pointer transition-all duration-300 overflow-hidden
+      className={`relative w-24 h-36 bg-[#0D0D12] border-2 rounded-lg flex flex-col justify-center items-center cursor-grab overflow-hidden
         ${isSelected ? 'border-[#DEB564] shadow-[0_0_20px_rgba(212,175,55,0.4)] scale-110 z-20' : 'border-white/20 hover:border-white/50 hover:scale-105 z-0'}`}
     >
       {!imgError && (
@@ -106,15 +188,15 @@ const CardVisual: React.FC<{ drawnCard: DrawnCard, isSelected: boolean, onClick:
         </div>
       )}
 
-      <div className="absolute bottom-2 left-0 w-full text-center z-20 px-1">
+      <div className="absolute bottom-2 left-0 w-full text-center z-20 px-1 pointer-events-none">
         <p className="text-[9px] uppercase tracking-wider text-amber-100/90 truncate">{card.name}</p>
         <p className="text-[7px] text-[#FFFAE3]/40 uppercase mt-0.5">{drawnCard.position.name}</p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function TenCardInnerOuter({ cards, selectedCardId, onCardClick }: { cards: DrawnCard[], selectedCardId: string | null, onCardClick: (card: DrawnCard) => void }) {
+function TenCardInnerOuter({ cards, selectedCardId, onCardClick, positions, onDragEnd }: LayoutProps) {
   const getCard = (posName: string, side: string) => cards.find(c => c.position.name.toLowerCase().includes(posName) && c.position.name.toLowerCase().includes(side));
 
   // External
@@ -131,26 +213,39 @@ function TenCardInnerOuter({ cards, selectedCardId, onCardClick }: { cards: Draw
   const head = getCard('head', 'internal');
   const gut = getCard('gut', 'internal');
 
+  const renderCard = (card: DrawnCard | undefined) => {
+    if (!card) return null;
+    return (
+      <CardVisual 
+        drawnCard={card} 
+        isSelected={selectedCardId === card.card.id} 
+        onClick={() => onCardClick(card)} 
+        position={positions[card.card.id] || { x: 0, y: 0 }}
+        onDragEnd={(offset) => onDragEnd(card.card.id, offset)}
+      />
+    );
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-8 overflow-x-auto min-h-[700px] w-full">
       <div className="relative w-[500px] h-[500px] mx-auto scale-90 sm:scale-100">
         {/* Outer Circle */}
-        {fire && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4"><CardVisual drawnCard={fire} isSelected={selectedCardId === fire.card.id} onClick={() => onCardClick(fire)} /></div>}
-        {water && <div className="absolute top-1/2 right-0 translate-x-4 -translate-y-1/2"><CardVisual drawnCard={water} isSelected={selectedCardId === water.card.id} onClick={() => onCardClick(water)} /></div>}
-        {earth && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-4"><CardVisual drawnCard={earth} isSelected={selectedCardId === earth.card.id} onClick={() => onCardClick(earth)} /></div>}
-        {air && <div className="absolute top-1/2 left-0 -translate-x-4 -translate-y-1/2"><CardVisual drawnCard={air} isSelected={selectedCardId === air.card.id} onClick={() => onCardClick(air)} /></div>}
+        {fire && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4">{renderCard(fire)}</div>}
+        {water && <div className="absolute top-1/2 right-0 translate-x-4 -translate-y-1/2">{renderCard(water)}</div>}
+        {earth && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-4">{renderCard(earth)}</div>}
+        {air && <div className="absolute top-1/2 left-0 -translate-x-4 -translate-y-1/2">{renderCard(air)}</div>}
         
         {/* Outer Ruler - Top Right */}
-        {extRuler && <div className="absolute -top-8 -right-8"><CardVisual drawnCard={extRuler} isSelected={selectedCardId === extRuler.card.id} onClick={() => onCardClick(extRuler)} /></div>}
+        {extRuler && <div className="absolute -top-8 -right-8">{renderCard(extRuler)}</div>}
 
         {/* Inner Circle */}
-        {head && <div className="absolute top-1/4 left-1/2 -translate-x-1/2 translate-y-2"><CardVisual drawnCard={head} isSelected={selectedCardId === head.card.id} onClick={() => onCardClick(head)} /></div>}
-        {heart && <div className="absolute top-1/2 right-1/4 -translate-x-2 -translate-y-1/2"><CardVisual drawnCard={heart} isSelected={selectedCardId === heart.card.id} onClick={() => onCardClick(heart)} /></div>}
-        {gut && <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 -translate-y-2"><CardVisual drawnCard={gut} isSelected={selectedCardId === gut.card.id} onClick={() => onCardClick(gut)} /></div>}
-        {soul && <div className="absolute top-1/2 left-1/4 translate-x-2 -translate-y-1/2"><CardVisual drawnCard={soul} isSelected={selectedCardId === soul.card.id} onClick={() => onCardClick(soul)} /></div>}
+        {head && <div className="absolute top-1/4 left-1/2 -translate-x-1/2 translate-y-2">{renderCard(head)}</div>}
+        {heart && <div className="absolute top-1/2 right-1/4 -translate-x-2 -translate-y-1/2">{renderCard(heart)}</div>}
+        {gut && <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 -translate-y-2">{renderCard(gut)}</div>}
+        {soul && <div className="absolute top-1/2 left-1/4 translate-x-2 -translate-y-1/2">{renderCard(soul)}</div>}
         
         {/* Center / Inner Ruler */}
-        {intRuler && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"><CardVisual drawnCard={intRuler} isSelected={selectedCardId === intRuler.card.id} onClick={() => onCardClick(intRuler)} /></div>}
+        {intRuler && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{renderCard(intRuler)}</div>}
       </div>
     </div>
   );

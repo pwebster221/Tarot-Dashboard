@@ -1,0 +1,695 @@
+{
+  "id": "workflow-1777920406928",
+  "name": "mani-chart-scoring-v3",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "group-fetch",
+      "type": "group",
+      "name": "group-fetch",
+      "position": {
+        "x": 700,
+        "y": 75
+      },
+      "data": {
+        "label": "Chart Data Fetchers"
+      },
+      "style": {
+        "width": 320,
+        "height": 900
+      }
+    },
+    {
+      "id": "group-scoring",
+      "type": "group",
+      "name": "group-scoring",
+      "position": {
+        "x": 1120,
+        "y": 75
+      },
+      "data": {
+        "label": "Mani Protocol Scoring"
+      },
+      "style": {
+        "width": 320,
+        "height": 900
+      }
+    },
+    {
+      "id": "group-interpret",
+      "type": "group",
+      "name": "group-interpret",
+      "position": {
+        "x": 1540,
+        "y": 75
+      },
+      "data": {
+        "label": "Archetype Interpretation"
+      },
+      "style": {
+        "width": 320,
+        "height": 900
+      }
+    },
+    {
+      "id": "start-1",
+      "type": "start",
+      "name": "start-1",
+      "position": {
+        "x": 100,
+        "y": 500
+      },
+      "data": {
+        "label": "Start"
+      }
+    },
+    {
+      "id": "ask-chart-type",
+      "type": "askUserQuestion",
+      "name": "ask-chart-type",
+      "position": {
+        "x": 405,
+        "y": 630
+      },
+      "data": {
+        "questionText": "What type of astrological chart would you like to score with the Mani Protocol?",
+        "options": [
+          {
+            "id": "natal",
+            "label": "Natal Chart",
+            "description": "Score an individual's birth chart against the 17 cognitive dimensions"
+          },
+          {
+            "id": "mundane",
+            "label": "Mundane Chart",
+            "description": "Score a nation or historical event chart (196 countries available)"
+          },
+          {
+            "id": "transit",
+            "label": "Transit Analysis",
+            "description": "Score current planetary transits and their cognitive signatures"
+          },
+          {
+            "id": "custom",
+            "label": "Custom/Other",
+            "description": "Provide custom chart data or use another Kairos chart type"
+          }
+        ],
+        "multiSelect": false,
+        "useAiSuggestions": false,
+        "outputPorts": 4
+      }
+    },
+    {
+      "id": "fetch-natal",
+      "type": "mcp",
+      "name": "fetch-natal",
+      "position": {
+        "x": 40,
+        "y": 80
+      },
+      "data": {
+        "serverId": "kairos",
+        "toolName": "get_natal_chart",
+        "toolDescription": "Fetch natal chart data including planetary positions, houses, aspects, and comprehensive interpretive report",
+        "parameters": [
+          {
+            "name": "birth_date",
+            "type": "string",
+            "description": "Birth date in ISO format",
+            "required": true
+          },
+          {
+            "name": "birth_time",
+            "type": "string",
+            "description": "Birth time in HH:MM format",
+            "required": true
+          },
+          {
+            "name": "birth_location",
+            "type": "string",
+            "description": "Birth city/location",
+            "required": true
+          }
+        ],
+        "mode": "aiParameterConfig",
+        "aiParameterConfig": {
+          "description": "Ask the user for birth date, time, and location. Fetch complete natal chart with full Kairos report including planetary positions, house cusps, aspects, and interpretive analysis.",
+          "timestamp": "2026-05-04T00:00:00Z"
+        },
+        "validationStatus": "valid",
+        "outputPorts": 1
+      },
+      "parentId": "group-fetch"
+    },
+    {
+      "id": "fetch-mundane",
+      "type": "mcp",
+      "name": "fetch-mundane",
+      "position": {
+        "x": 40,
+        "y": 280
+      },
+      "data": {
+        "serverId": "kairos",
+        "toolName": "get_mundane_chart",
+        "toolDescription": "Fetch mundane astrology chart for a nation or historical event with comprehensive report",
+        "parameters": [
+          {
+            "name": "country_code",
+            "type": "string",
+            "description": "ISO country code or event identifier",
+            "required": true
+          },
+          {
+            "name": "chart_type",
+            "type": "string",
+            "description": "Type: independence, constitution, revolution, etc.",
+            "required": false
+          }
+        ],
+        "mode": "aiParameterConfig",
+        "aiParameterConfig": {
+          "description": "Ask which country or historical event to analyze. Fetch mundane chart with full Kairos report including national chart data and interpretive analysis.",
+          "timestamp": "2026-05-04T00:00:00Z"
+        },
+        "validationStatus": "valid",
+        "outputPorts": 1
+      },
+      "parentId": "group-fetch"
+    },
+    {
+      "id": "fetch-transit",
+      "type": "mcp",
+      "name": "fetch-transit",
+      "position": {
+        "x": 40,
+        "y": 480
+      },
+      "data": {
+        "serverId": "kairos",
+        "toolName": "get_current_transits",
+        "toolDescription": "Fetch current planetary transit positions and comprehensive transit report",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "string",
+            "description": "Date for transit calculation (defaults to today)",
+            "required": false
+          },
+          {
+            "name": "reference_chart",
+            "type": "string",
+            "description": "Optional natal chart ID to compare transits against",
+            "required": false
+          }
+        ],
+        "mode": "aiParameterConfig",
+        "aiParameterConfig": {
+          "description": "Get current planetary positions and transits with full Kairos report. Optionally compare against a natal chart for personalized transit analysis.",
+          "timestamp": "2026-05-04T00:00:00Z"
+        },
+        "validationStatus": "valid",
+        "outputPorts": 1
+      },
+      "parentId": "group-fetch"
+    },
+    {
+      "id": "fetch-custom",
+      "type": "mcp",
+      "name": "fetch-custom",
+      "position": {
+        "x": 40,
+        "y": 680
+      },
+      "data": {
+        "serverId": "kairos",
+        "toolName": "get_chart",
+        "toolDescription": "Fetch custom chart data from Kairos with comprehensive report",
+        "parameters": [
+          {
+            "name": "chart_type",
+            "type": "string",
+            "description": "Chart type: synastry, solar_return, lunar_return, progressed, composite, etc.",
+            "required": true
+          },
+          {
+            "name": "parameters",
+            "type": "object",
+            "description": "Chart-specific parameters",
+            "required": true
+          }
+        ],
+        "mode": "aiParameterConfig",
+        "aiParameterConfig": {
+          "description": "Ask what custom chart type needed (synastry, returns, progressions, composite, planetary hours, etc.). Gather parameters and fetch with full Kairos report.",
+          "timestamp": "2026-05-04T00:00:00Z"
+        },
+        "validationStatus": "valid",
+        "outputPorts": 1
+      },
+      "parentId": "group-fetch"
+    },
+    {
+      "id": "score-natal",
+      "type": "subAgent",
+      "name": "score-natal",
+      "position": {
+        "x": 40,
+        "y": 80
+      },
+      "data": {
+        "description": "Mani scoring specialized for natal charts",
+        "agentDefinition": "Natal chart Mani Protocol scorer. Expert in mapping individual birth chart configurations to the 17 cognitive dimensions.",
+        "prompt": "You are scoring a NATAL CHART using the Mani Protocol 17 dimensions.\n\n## Natal Chart Scoring Principles\n\n**Personal Planet Emphasis (Sun, Moon, Mercury, Venus, Mars):**\n- These carry the heaviest weight for individual cognitive signatures\n- Sun/Moon especially inform NI/NE (intuition) and FI/FE (feeling) dimensions\n- Mercury strongly influences TI/TE (thinking) dimensions\n\n**House System Considerations:**\n- Angular houses (1, 4, 7, 10) amplify planetary cognitive signatures\n- 1st house planets are core identity expressions\n- 12th house planets may indicate unconscious cognitive patterns\n\n**Aspect Patterns:**\n- Grand trines suggest cognitive ease/flow in element\n- T-squares indicate cognitive tension driving growth\n- Stelliums concentrate cognitive energy in specific dimensions\n\n**Score each of the 17 dimensions (0-100):**\nNI, NE, TI, TE, FI, FE, SI, SE, RI, RE, PI, PE, OC, TM, NC, EM, UQ\n\nFor each score, provide:\n1. The numerical score\n2. Primary planetary indicators\n3. House/aspect support\n4. Reasoning based on natal chart interpretation principles\n\nUse the Mani MCP tool to calculate scores, incorporating the natal chart data provided.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-scoring"
+    },
+    {
+      "id": "score-mundane",
+      "type": "subAgent",
+      "name": "score-mundane",
+      "position": {
+        "x": 40,
+        "y": 280
+      },
+      "data": {
+        "description": "Mani scoring specialized for mundane/nation charts",
+        "agentDefinition": "Mundane astrology Mani Protocol scorer. Expert in mapping national and historical event charts to collective cognitive dimensions.",
+        "prompt": "You are scoring a MUNDANE CHART using the Mani Protocol 17 dimensions.\n\n## Mundane Chart Scoring Principles\n\n**Collective vs Individual:**\n- Scores represent COLLECTIVE cognitive tendencies, not individual\n- National character, institutional patterns, historical cycles\n\n**Key Mundane Factors:**\n- Sun = Leadership, national identity, executive power\n- Moon = The populace, public mood, domestic affairs\n- Saturn = Government structure, traditions, limitations\n- Jupiter = Expansion, foreign relations, judiciary\n- Mars = Military, conflicts, national energy\n- Mercury = Commerce, communication, media\n- Venus = Arts, culture, values, diplomacy\n\n**House Meanings in Mundane:**\n- 1st: The nation itself, national character\n- 4th: Land, agriculture, opposition party\n- 7th: Foreign relations, treaties, open enemies\n- 10th: Government, ruling party, national reputation\n\n**Historical Context:**\n- Consider the era of the chart (independence, revolution, etc.)\n- Outer planet positions reflect generational/epochal patterns\n\n**Score each of the 17 dimensions (0-100):**\nNI, NE, TI, TE, FI, FE, SI, SE, RI, RE, PI, PE, OC, TM, NC, EM, UQ\n\nFor each score, provide:\n1. The numerical score (collective interpretation)\n2. Dominant planetary indicators for national character\n3. Historical/cultural reasoning\n4. How this manifests in national institutions/culture\n\nUse the Mani MCP tool to calculate scores.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-scoring"
+    },
+    {
+      "id": "score-transit",
+      "type": "subAgent",
+      "name": "score-transit",
+      "position": {
+        "x": 40,
+        "y": 480
+      },
+      "data": {
+        "description": "Mani scoring specialized for transit analysis",
+        "agentDefinition": "Transit astrology Mani Protocol scorer. Expert in mapping current planetary movements to temporal cognitive influences.",
+        "prompt": "You are scoring a TRANSIT CONFIGURATION using the Mani Protocol 17 dimensions.\n\n## Transit Scoring Principles\n\n**Temporal Nature:**\n- Transit scores represent CURRENT cognitive weather, not fixed traits\n- These are influences available to tap into NOW\n- Duration matters: outer planet transits = long-term shifts; inner = daily fluctuations\n\n**Transit Weighting:**\n- Outer planets (Pluto, Neptune, Uranus): Deep, transformative cognitive shifts\n- Middle planets (Saturn, Jupiter): Structural/expansive cognitive themes\n- Inner planets (Mars, Venus, Mercury, Sun, Moon): Daily cognitive coloring\n\n**Aspect Dynamics:**\n- Applying aspects = building cognitive energy\n- Separating aspects = releasing/integrating\n- Exact aspects = peak intensity\n\n**Retrograde Considerations:**\n- Retrograde planets suggest internalized/reflective versions of cognitive functions\n- Mercury Rx: TI/TE become more introspective\n- Venus Rx: FI/FE turn inward for reassessment\n\n**Score each of the 17 dimensions (0-100):**\nNI, NE, TI, TE, FI, FE, SI, SE, RI, RE, PI, PE, OC, TM, NC, EM, UQ\n\nFor each score, provide:\n1. The numerical score (temporal interpretation)\n2. Active transiting planets driving this dimension\n3. Duration/timing of this influence\n4. Practical suggestions for working with this cognitive energy\n\nUse the Mani MCP tool to calculate scores.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-scoring"
+    },
+    {
+      "id": "score-custom",
+      "type": "subAgent",
+      "name": "score-custom",
+      "position": {
+        "x": 40,
+        "y": 680
+      },
+      "data": {
+        "description": "Mani scoring for custom chart types",
+        "agentDefinition": "Flexible Mani Protocol scorer for specialized chart types: synastry, composites, returns, progressions, and other advanced techniques.",
+        "prompt": "You are scoring a CUSTOM/SPECIALIZED CHART using the Mani Protocol 17 dimensions.\n\n## Adaptive Scoring Based on Chart Type\n\nFirst, identify the chart type and apply appropriate principles:\n\n**SYNASTRY:** Score the RELATIONSHIP's cognitive signature from inter-aspects\n**COMPOSITE:** Score the relationship entity as a third being\n**SOLAR RETURN:** Score the YEAR's cognitive themes\n**LUNAR RETURN:** Score the MONTH's emotional/intuitive patterns\n**PROGRESSED:** Score evolved/matured cognitive development\n**PLANETARY HOURS:** Score optimal timing for cognitive activities\n\n**Score each of the 17 dimensions (0-100):**\nNI, NE, TI, TE, FI, FE, SI, SE, RI, RE, PI, PE, OC, TM, NC, EM, UQ\n\nFor each score, provide:\n1. The numerical score (context-appropriate)\n2. Key indicators from the specific chart type\n3. How this chart type uniquely informs this dimension\n4. Practical application of this cognitive insight\n\nUse the Mani MCP tool to calculate scores.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-scoring"
+    },
+    {
+      "id": "interpret-natal",
+      "type": "subAgent",
+      "name": "interpret-natal",
+      "position": {
+        "x": 40,
+        "y": 80
+      },
+      "data": {
+        "description": "Natal chart interpretation with full Kairos report analysis",
+        "agentDefinition": "Expert interpreter of natal chart Mani scores. Reviews the complete Kairos report to prioritize the most significant insights for the individual.",
+        "prompt": "You are interpreting a NATAL CHART with Mani scores.\n\n## CHART PURPOSE\nA natal chart captures the cosmic signature at the moment of birth—a blueprint of the soul's incarnational intent. Unlike transits (temporal) or mundane charts (collective), the natal chart is PERSONAL and PERMANENT. It shows:\n- Core identity and life purpose\n- Innate cognitive/emotional patterns\n- Karmic themes and soul lessons\n- Personal strengths and growth edges\n\n## INTERPRETATION QUIRKS vs OTHER CHARTS\n- **Fixed vs Fluid**: Natal patterns are lifelong; don't treat them as temporary like transits\n- **Individual vs Collective**: This is ONE person's journey, not a nation or relationship\n- **Potential vs Manifestation**: The chart shows potential; actualization depends on consciousness\n- **Whole Chart Synthesis**: Unlike mundane (institution-focused) or transit (event-focused), natal requires holistic personality integration\n\n## YOUR TASK\n\n**1. REVIEW THE FULL KAIROS REPORT**\nThe Kairos system has provided a comprehensive report. Read it entirely and identify:\n- What does Kairos emphasize as most significant?\n- What patterns, aspects, or placements does it highlight?\n- Are there any warnings, challenges, or exceptional configurations noted?\n\n**2. PRIORITIZE BASED ON THE REPORT**\nFrom the full Kairos analysis, select the 3-5 MOST IMPORTANT themes to focus on. Criteria:\n- Strength of aspect/placement (exact degrees, angular positions)\n- Repetition of themes across multiple factors\n- Unusual or rare configurations\n- Tension patterns requiring attention\n\n**3. MAP TO THE 78 ARCHETYPES**\nFor your prioritized themes:\n- **Major Arcana**: Which 1-2 cards represent the soul's primary journey?\n- **Court Cards**: Which best captures their personality expression?\n- **Minor Arcana**: Which 2-3 cards reflect key life themes?\n\n**4. HERMETIC SYNTHESIS**\n- Kabbalistic path correspondences\n- Planetary rulership hierarchy\n- MBTI cognitive stack alignment\n- Enneagram resonance\n\n**5. GENERATE TRAINING TAGS**\nFor Saturn storage: archetype IDs, confidence scores, evidence chains.\n\nLet the Kairos report guide your focus—don't try to cover everything. Depth over breadth.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-interpret"
+    },
+    {
+      "id": "interpret-mundane",
+      "type": "subAgent",
+      "name": "interpret-mundane",
+      "position": {
+        "x": 40,
+        "y": 280
+      },
+      "data": {
+        "description": "Mundane chart interpretation with full Kairos report analysis",
+        "agentDefinition": "Expert interpreter of mundane Mani scores. Reviews the complete Kairos report to prioritize the most significant collective/national insights.",
+        "prompt": "You are interpreting a MUNDANE CHART with Mani scores.\n\n## CHART PURPOSE\nA mundane chart captures the cosmic signature of a COLLECTIVE entity—a nation, institution, or historical event. Unlike natal (personal) charts, mundane charts reveal:\n- National character and destiny\n- Institutional patterns and governance style\n- Historical cycles and collective karma\n- Geopolitical role and relationships\n\n## INTERPRETATION QUIRKS vs NATAL CHARTS\n- **Collective vs Personal**: Every placement represents masses of people, not one individual\n- **Institutional Focus**: Houses represent government branches, economy, military—not personal life areas\n- **Historical Lens**: Interpret through the founding era's context and subsequent evolution\n- **Cyclic Emphasis**: Outer planet returns and progressions mark major historical shifts\n- **No Free Will Factor**: Nations don't 'choose' to evolve; patterns play out through historical forces\n- **Anonymity**: The 'Moon' is millions of citizens, not one person's emotions\n\n## YOUR TASK\n\n**1. REVIEW THE FULL KAIROS REPORT**\nThe Kairos system has provided a comprehensive report. Read it entirely and identify:\n- What does Kairos emphasize about this nation/event?\n- Historical patterns or cycles highlighted?\n- Geopolitical strengths/vulnerabilities noted?\n- Any critical configurations affecting national destiny?\n\n**2. PRIORITIZE BASED ON THE REPORT**\nFrom the full Kairos analysis, select the 3-5 MOST IMPORTANT themes. Criteria:\n- Configurations affecting national identity (1st/10th house)\n- Patterns in governance/authority (Saturn, 10th house)\n- Foreign relations indicators (7th house, Jupiter)\n- Historical cycle positions (outer planet returns)\n\n**3. MAP TO THE 78 ARCHETYPES (COLLECTIVE)**\n- **Major Arcana**: What archetype embodies this nation's soul?\n- **Court Cards**: What 'personality' does this nation project?\n- **Minor Arcana**: What themes define its historical narrative?\n\n**4. GEOPOLITICAL SYNTHESIS**\n- Role in world order\n- Relationship patterns with other nations\n- Historical trajectory and current cycle position\n- Shadow patterns in national character\n\n**5. GENERATE TRAINING TAGS**\nFor Saturn storage: collective archetype IDs, historical pattern classifications.\n\nLet Kairos guide your focus on what's most geopolitically/historically significant.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-interpret"
+    },
+    {
+      "id": "interpret-transit",
+      "type": "subAgent",
+      "name": "interpret-transit",
+      "position": {
+        "x": 40,
+        "y": 480
+      },
+      "data": {
+        "description": "Transit interpretation with full Kairos report analysis",
+        "agentDefinition": "Expert interpreter of transit Mani scores. Reviews the complete Kairos report to prioritize the most significant temporal insights.",
+        "prompt": "You are interpreting a TRANSIT CONFIGURATION with Mani scores.\n\n## CHART PURPOSE\nTransits capture the CURRENT cosmic weather—the moving planets' influence on a moment in time. Unlike natal (fixed blueprint) or mundane (collective entity), transits are:\n- Temporary and time-bound\n- Available to everyone simultaneously (collective weather)\n- Actionable for timing decisions\n- Cyclically recurring (same transits return)\n\n## INTERPRETATION QUIRKS vs NATAL CHARTS\n- **Temporal vs Permanent**: These influences WILL PASS—give timeframes, not identity statements\n- **Weather vs Climate**: Transits are weather; natal is climate. Don't confuse temporary conditions with lasting traits\n- **Orb Sensitivity**: Exact aspects matter more; applying vs separating changes the energy\n- **Layered Effects**: Multiple transits interact—look for themes, not isolated events\n- **Personal Application**: If comparing to a natal chart, the transit activates natal potential—it doesn't override it\n- **Collective Baseline**: Everyone experiences the same outer planet transits; inner planets personalize timing\n\n## YOUR TASK\n\n**1. REVIEW THE FULL KAIROS REPORT**\nThe Kairos system has provided a comprehensive report. Read it entirely and identify:\n- What transits does Kairos flag as most significant RIGHT NOW?\n- Any exact aspects occurring within tight orbs?\n- Outer planet stations or sign changes noted?\n- If personal chart included: which natal points are being activated?\n\n**2. PRIORITIZE BASED ON THE REPORT**\nFrom the full Kairos analysis, select the 3-5 MOST IMPORTANT transits. Criteria:\n- Exactitude (closest orbs first)\n- Outer planet involvement (longer-lasting, deeper impact)\n- Aspect type (conjunctions/squares/oppositions over trines/sextiles for intensity)\n- Multiple planets in aspect (stelliums, grand crosses, etc.)\n\n**3. MAP TO THE 78 ARCHETYPES (TEMPORAL)**\n- **Major Arcana**: What archetypal energy dominates this moment?\n- **Court Cards**: What stance/approach is supported now?\n- **Minor Arcana**: What daily themes are active?\n\n**4. TIMING GUIDANCE**\n- When do key aspects perfect?\n- Duration of major influences\n- Best days/hours for specific cognitive functions\n- What to lean into vs wait out\n\n**5. GENERATE TRAINING TAGS**\nFor Saturn storage: temporal archetype patterns, transit correlations.\n\nLet Kairos guide your focus on what's most TIME-SENSITIVE and actionable.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-interpret"
+    },
+    {
+      "id": "interpret-custom",
+      "type": "subAgent",
+      "name": "interpret-custom",
+      "position": {
+        "x": 40,
+        "y": 680
+      },
+      "data": {
+        "description": "Custom chart interpretation with full Kairos report analysis",
+        "agentDefinition": "Flexible interpreter for specialized chart Mani scores. Adapts interpretation framework based on chart type, reviewing complete Kairos report.",
+        "prompt": "You are interpreting a CUSTOM/SPECIALIZED CHART with Mani scores.\n\n## FIRST: IDENTIFY CHART TYPE\nDetermine which type this is, then apply the appropriate framework:\n\n---\n\n### SYNASTRY\n**Purpose**: Reveals the dynamics between TWO charts—how two people interact, trigger, and support each other.\n**Quirks vs Natal**:\n- It's about the RELATIONSHIP, not either individual alone\n- Inter-aspects create dynamics neither chart has independently\n- No single 'chart ruler'—both charts contribute\n- Synastry shows potential; composite shows manifestation\n\n---\n\n### COMPOSITE\n**Purpose**: The RELATIONSHIP ITSELF as a third entity—what the union creates together.\n**Quirks vs Natal**:\n- This isn't either person; it's what emerges when they combine\n- Midpoints create new placements that exist only in union\n- The composite Sun is the relationship's identity/purpose\n- Treat it like a natal chart FOR the relationship\n\n---\n\n### SOLAR RETURN\n**Purpose**: The YEAR ahead from birthday to birthday—annual themes and focus areas.\n**Quirks vs Natal**:\n- Temporary (1 year) unlike natal (lifetime)\n- SR Ascendant sets the year's tone, even if different from natal\n- SR planets in natal houses show which life areas activate\n- The return chart overlays natal; it doesn't replace it\n\n---\n\n### LUNAR RETURN\n**Purpose**: The MONTH ahead—emotional/intuitive themes for ~28 days.\n**Quirks vs Natal**:\n- Very short-term; rapid cycling\n- Emphasizes Moon-related dimensions (FI/FE, NI/NE)\n- Good for emotional planning, not major life decisions\n- Lunar phase at return sets emotional tone\n\n---\n\n### PROGRESSED CHART\n**Purpose**: Shows how the natal chart has EVOLVED over the lifetime—matured expressions.\n**Quirks vs Natal**:\n- Slow-moving; progressed Moon takes 28 years to cycle\n- Shows psychological/spiritual development, not events\n- Progressed angles and inner planets matter most\n- Compare TO natal; it's an evolution, not replacement\n\n---\n\n## YOUR TASK\n\n**1. REVIEW THE FULL KAIROS REPORT** for this specific chart type\n**2. PRIORITIZE** the 3-5 most significant patterns Kairos highlights\n**3. MAP TO ARCHETYPES** appropriate to the chart type's purpose\n**4. PROVIDE CONTEXT-SPECIFIC GUIDANCE** based on what this chart type reveals\n**5. GENERATE TRAINING TAGS** for Saturn storage\n\nLet Kairos guide your focus based on what's most relevant for THIS chart type.",
+        "builtInType": "general-purpose",
+        "agentType": "claudeCode",
+        "outputPorts": 1
+      },
+      "parentId": "group-interpret"
+    },
+    {
+      "id": "ask-store",
+      "type": "askUserQuestion",
+      "name": "ask-store",
+      "position": {
+        "x": 1960,
+        "y": 400
+      },
+      "data": {
+        "questionText": "Store these Mani scores and archetype mappings to Saturn Neo4j as training data for the 78?",
+        "options": [
+          {
+            "id": "store-full",
+            "label": "Yes, full storage",
+            "description": "Save complete scored chart, interpretation, and all archetype mappings to The 78 Abstraction"
+          },
+          {
+            "id": "store-minimal",
+            "label": "Yes, scores only",
+            "description": "Save just the Mani dimension scores without full interpretation"
+          },
+          {
+            "id": "skip",
+            "label": "No, display only",
+            "description": "View results without persisting to database"
+          }
+        ],
+        "multiSelect": false,
+        "useAiSuggestions": false,
+        "outputPorts": 3
+      }
+    },
+    {
+      "id": "store-full",
+      "type": "mcp",
+      "name": "store-full",
+      "position": {
+        "x": 2280,
+        "y": 225
+      },
+      "data": {
+        "serverId": "neo4j",
+        "toolName": "execute_cypher",
+        "toolDescription": "Store complete Mani scored chart with interpretation to Saturn Neo4j for training data",
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string",
+            "description": "Cypher query to execute",
+            "required": true
+          },
+          {
+            "name": "parameters",
+            "type": "object",
+            "description": "Query parameters",
+            "required": false
+          }
+        ],
+        "mode": "aiParameterConfig",
+        "aiParameterConfig": {
+          "description": "Create comprehensive training data in The 78 Abstraction (bolt://localhost:7690):\n\n1. (chart:ManiScoredChart {id, chart_type, timestamp, source_data})\n2. For each dimension: (chart)-[:HAS_DIMENSION_SCORE {score, reasoning}]->(dim:ManiDimension {name})\n3. For each mapped archetype: (chart)-[:RESONATES_WITH {confidence, evidence}]->(arch:Archetype {id, name})\n4. (chart)-[:HAS_INTERPRETATION]->(interp:Interpretation {full_text, prioritized_themes, hermetic_layers})\n5. Store Kairos report highlights: (chart)-[:KAIROS_EMPHASIS]->(emphasis:KairosHighlight {theme, significance})\n6. Tag: source_type, quality_score, human_verified=false",
+          "timestamp": "2026-05-04T00:00:00Z"
+        },
+        "validationStatus": "valid",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "store-minimal",
+      "type": "mcp",
+      "name": "store-minimal",
+      "position": {
+        "x": 2280,
+        "y": 400
+      },
+      "data": {
+        "serverId": "neo4j",
+        "toolName": "execute_cypher",
+        "toolDescription": "Store Mani dimension scores only to Saturn Neo4j",
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string",
+            "description": "Cypher query to execute",
+            "required": true
+          },
+          {
+            "name": "parameters",
+            "type": "object",
+            "description": "Query parameters",
+            "required": false
+          }
+        ],
+        "mode": "aiParameterConfig",
+        "aiParameterConfig": {
+          "description": "Create minimal training data in The 78 Abstraction (bolt://localhost:7690):\n\n1. (chart:ManiScoredChart {id, chart_type, timestamp})\n2. Store 17 dimension scores as properties: {NI, NE, TI, TE, FI, FE, SI, SE, RI, RE, PI, PE, OC, TM, NC, EM, UQ}\n3. (chart)-[:DERIVED_FROM]->(source:ChartData {raw_data})\n4. Tag: source_type, minimal_record=true",
+          "timestamp": "2026-05-04T00:00:00Z"
+        },
+        "validationStatus": "valid",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-full",
+      "type": "end",
+      "name": "end-full",
+      "position": {
+        "x": 2580,
+        "y": 225
+      },
+      "data": {
+        "label": "Complete (Full Training Data)"
+      }
+    },
+    {
+      "id": "end-minimal",
+      "type": "end",
+      "name": "end-minimal",
+      "position": {
+        "x": 2580,
+        "y": 400
+      },
+      "data": {
+        "label": "Complete (Scores Only)"
+      }
+    },
+    {
+      "id": "end-display",
+      "type": "end",
+      "name": "end-display",
+      "position": {
+        "x": 2280,
+        "y": 575
+      },
+      "data": {
+        "label": "Complete (Display Only)"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "from": "start-1",
+      "to": "ask-chart-type",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c2",
+      "from": "ask-chart-type",
+      "to": "fetch-natal",
+      "fromPort": "branch-0",
+      "toPort": "input"
+    },
+    {
+      "id": "c3",
+      "from": "ask-chart-type",
+      "to": "fetch-mundane",
+      "fromPort": "branch-1",
+      "toPort": "input"
+    },
+    {
+      "id": "c4",
+      "from": "ask-chart-type",
+      "to": "fetch-transit",
+      "fromPort": "branch-2",
+      "toPort": "input"
+    },
+    {
+      "id": "c5",
+      "from": "ask-chart-type",
+      "to": "fetch-custom",
+      "fromPort": "branch-3",
+      "toPort": "input"
+    },
+    {
+      "id": "c6",
+      "from": "fetch-natal",
+      "to": "score-natal",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c7",
+      "from": "fetch-mundane",
+      "to": "score-mundane",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c8",
+      "from": "fetch-transit",
+      "to": "score-transit",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c9",
+      "from": "fetch-custom",
+      "to": "score-custom",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c10",
+      "from": "score-natal",
+      "to": "interpret-natal",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c11",
+      "from": "score-mundane",
+      "to": "interpret-mundane",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c12",
+      "from": "score-transit",
+      "to": "interpret-transit",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c13",
+      "from": "score-custom",
+      "to": "interpret-custom",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c14",
+      "from": "interpret-natal",
+      "to": "ask-store",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c15",
+      "from": "interpret-mundane",
+      "to": "ask-store",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c16",
+      "from": "interpret-transit",
+      "to": "ask-store",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c17",
+      "from": "interpret-custom",
+      "to": "ask-store",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c18",
+      "from": "ask-store",
+      "to": "store-full",
+      "fromPort": "branch-0",
+      "toPort": "input"
+    },
+    {
+      "id": "c19",
+      "from": "ask-store",
+      "to": "store-minimal",
+      "fromPort": "branch-1",
+      "toPort": "input"
+    },
+    {
+      "id": "c20",
+      "from": "ask-store",
+      "to": "end-display",
+      "fromPort": "branch-2",
+      "toPort": "input"
+    },
+    {
+      "id": "c21",
+      "from": "store-full",
+      "to": "end-full",
+      "fromPort": "output",
+      "toPort": "input"
+    },
+    {
+      "id": "c22",
+      "from": "store-minimal",
+      "to": "end-minimal",
+      "fromPort": "output",
+      "toPort": "input"
+    }
+  ],
+  "createdAt": "2026-05-04T18:46:46.928Z",
+  "updatedAt": "2026-05-04T18:46:46.928Z",
+  "subAgentFlows": []
+}
