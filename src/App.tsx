@@ -205,12 +205,14 @@ export default function App() {
             <button className="p-2 rounded-md hover:bg-white/5 border border-white/5 transition-colors">
               <SlidersHorizontal className="w-5 h-5 opacity-60" />
             </button>
-            <button 
-              onClick={() => setIsNewReadingModalOpen(true)}
-              className="px-4 py-2 bg-[#DEB564]/10 text-[#DEB564] border border-[#DEB564]/30 rounded-md text-sm font-medium hover:bg-[#DEB564]/20 transition-colors"
+            <a
+              href="https://forms.pathsofreverence.com/tarot-reading"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-[#DEB564]/10 text-[#DEB564] border border-[#DEB564]/30 rounded-md text-sm font-medium hover:bg-[#DEB564]/20 transition-colors no-underline"
             >
               New Reading
-            </button>
+            </a>
           </div>
         </div>
       </header>

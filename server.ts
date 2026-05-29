@@ -90,9 +90,10 @@ async function startServer() {
       const apiUrl = `https://readings.dubtown-server.us/readings?${new URLSearchParams(req.query as any).toString()}`;
       console.log(`[Proxy] Fetching: ${apiUrl}`);
       
-      const apiKey = process.env.DUBTOWN_API_KEY || "991350812581ca5d21a55873de5585cccf0f7dce7e6a71858a1f83a5ed4a7c33";
-      if (!process.env.DUBTOWN_API_KEY) {
-        console.warn("[Proxy] DUBTOWN_API_KEY environment variable is not set. Using fallback key.");
+      const apiKey = process.env.DUBTOWN_API_KEY;
+      if (!apiKey) {
+        console.error("[Proxy] DUBTOWN_API_KEY is not set");
+        return res.status(503).json({ error: "Readings backend not configured" });
       }
 
       const response = await fetch(apiUrl, {
@@ -100,7 +101,7 @@ async function startServer() {
           'Authorization': `Bearer ${apiKey}`
         }
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[Proxy] External API error (${response.status}): ${errorText}`);
@@ -121,8 +122,12 @@ async function startServer() {
     try {
       const apiUrl = `https://readings.dubtown-server.us/readings/${req.params.id}`;
       console.log(`[Proxy] Fetching detail: ${apiUrl}`);
-      
-      const apiKey = process.env.DUBTOWN_API_KEY || "991350812581ca5d21a55873de5585cccf0f7dce7e6a71858a1f83a5ed4a7c33";
+
+      const apiKey = process.env.DUBTOWN_API_KEY;
+      if (!apiKey) {
+        console.error("[Proxy] DUBTOWN_API_KEY is not set");
+        return res.status(503).json({ error: "Readings backend not configured" });
+      }
       const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${apiKey}`
