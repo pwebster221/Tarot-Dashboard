@@ -17,12 +17,12 @@
 - Tests run with the **built-in runner**: `node --test server/<file>.test.ts`. No vitest/jest.
 - Lint/typecheck: `npm run lint` (`tsc --noEmit`).
 - Service: `systemctl restart arcanum-dashboard` ; logs: `journalctl -u arcanum-dashboard -n 50 --no-pager`. App listens on port 3000.
-- **Known limitation (do not try to fix here):** Kairos `transit/full` returns top-level `cross_aspects: []` regardless of orb width or datetime (verified). The transit extractor therefore does NOT depend on it; it includes cross-aspects only if present. File a separate Kairos follow-up.
+- **Known limitation (worked around here):** Kairos `transit/full` returns top-level `cross_aspects: []` regardless of orb width or datetime (verified). We do NOT use it. Instead we compute transit-to-natal aspects locally from natal longitudes (cached) vs current transit longitudes — verified to find 13 aspects within 3° in the fixture. File a separate Kairos follow-up for the broken field, but it does not block this work.
 
 ## File Structure
 
 - Create: `server/llm.ts` — `callLiteLLM(system, user)` → string.
-- Create: `server/astroFormat.ts` — `summarizeNatal(natal)`, `summarizeTransit(overlay)` (pure).
+- Create: `server/astroFormat.ts` — `summarizeNatal(natal)`, `extractNatalPositions(natal)`, `computeTransitAspects(natalPositions, transitPlanets, orb)`, `summarizeTransit(overlay, natalPositions)` (all pure).
 - Create: `server/prompts.ts` — `buildDeepPrompt`, `buildOraclePrompt`, `buildTrendPrompt` (pure).
 - Create: `server/astroContext.ts` — birth/observer from env, Kairos fetchers, caching, `getAstroContext()`.
 - Create: `server/__fixtures__/transit_full.json` — real captured Kairos response for tests.
@@ -105,6 +105,18 @@ test("summarizeNatal degrades gracefully on empty input", () => {
   assert.equal(summarizeNatal(null), "Natal chart data unavailable.");
   assert.equal(summarizeNatal({}), "Natal chart data unavailable.");
 });
+
+test("extractNatalPositions returns longitudes for the major planets", () => {
+  const pos = extractNatalPositions(overlay.natal);
+  assert.equal(typeof pos.Sun, "number");
+  assert.ok(Object.keys(pos).length >= 8);
+});
+```
+
+Update the import line at the top of this test file to include the new export:
+
+```ts
+import { summarizeNatal, extractNatalPositions } from "./astroFormat.ts";
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -159,6 +171,19 @@ export function summarizeNatal(natal: any): string {
     aspectLine,
   ].join("\n");
 }
+
+/** Natal planet longitudes (degrees 0-360) keyed by planet, for aspect math. */
+export function extractNatalPositions(natal: any): Record<string, number> {
+  const raw = natal?._raw?.planets;
+  const out: Record<string, number> = {};
+  if (raw && typeof raw === "object") {
+    for (const name of PLANET_ORDER) {
+      const p = raw[name];
+      if (p && typeof p.lon === "number") out[name] = p.lon;
+    }
+  }
+  return out;
+}
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -185,26 +210,31 @@ git commit -m "feat(arcanum): add summarizeNatal extractor"
 
 - [ ] **Step 1: Add the failing test**
 
-Append to `server/astroFormat.test.ts`:
+Append to `server/astroFormat.test.ts` (and extend the top import to
+`import { summarizeNatal, extractNatalPositions, summarizeTransit, computeTransitAspects } from "./astroFormat.ts";`):
 
 ```ts
-import { summarizeTransit } from "./astroFormat.ts";
-
-test("summarizeTransit includes today's sky and patterns", () => {
-  const text = summarizeTransit(overlay);
+test("summarizeTransit includes today's sky and patterns; no aspects without natal", () => {
+  const text = summarizeTransit(overlay);   // no natal positions passed
   assert.match(text, /TODAY'S SKY/);
-  assert.match(text, /Sun[^\n]*Gemini/);   // Sun transiting Gemini on 2026-06-02
+  assert.match(text, /Sun[^\n]*Gemini/);    // Sun transiting Gemini on 2026-06-02
+  assert.doesNotMatch(text, /Transit-to-natal/);
 });
 
-test("summarizeTransit appends cross-aspects only when present", () => {
-  const withCross = {
-    ...overlay,
-    cross_aspects: [
-      { transit_planet: "Mars", aspect: "Trine", natal_planet: "Sun", orb: 1.2 },
-    ],
-  };
-  assert.match(summarizeTransit(withCross), /Mars Trine natal Sun/);
-  assert.doesNotMatch(summarizeTransit(overlay), /Transit-to-natal/);
+test("computeTransitAspects finds major aspects within orb, sorted tightest-first", () => {
+  const pos = extractNatalPositions(overlay.natal);
+  const a = computeTransitAspects(pos, overlay.transit.planets, 3);
+  assert.ok(a.length >= 5);                  // fixture has 13 within 3°
+  assert.ok(a[0].orb <= a[a.length - 1].orb);
+  // transiting Pluto is exactly conjunct natal Mercury in the fixture (0.0°)
+  assert.ok(a.some((h) => h.transit === "Pluto" && h.aspect === "Conjunction" && h.natal === "Mercury"));
+});
+
+test("summarizeTransit appends locally-computed transit-to-natal aspects", () => {
+  const pos = extractNatalPositions(overlay.natal);
+  const text = summarizeTransit(overlay, pos);
+  assert.match(text, /Transit-to-natal aspects:/);
+  assert.match(text, /transiting Pluto Conjunction natal Mercury/);
 });
 
 test("summarizeTransit degrades gracefully", () => {
@@ -222,7 +252,50 @@ Expected: FAIL — `summarizeTransit is not a function`.
 Append to `server/astroFormat.ts`:
 
 ```ts
-export function summarizeTransit(overlay: any): string {
+const ASPECT_ANGLES: Record<string, number> = {
+  Conjunction: 0, Sextile: 60, Square: 90, Trine: 120, Opposition: 180,
+};
+
+export interface TransitAspect {
+  transit: string; aspect: string; natal: string; orb: number;
+}
+
+/**
+ * Transit-to-natal aspects computed locally (Kairos cross_aspects is broken).
+ * For each transiting planet vs each natal planet, the angular separation is
+ * matched against the major aspect angles within `orbDeg`. Returns tightest-first.
+ */
+export function computeTransitAspects(
+  natalPositions: Record<string, number>,
+  transitPlanets: any,
+  orbDeg = 3,
+): TransitAspect[] {
+  const hits: TransitAspect[] = [];
+  if (!transitPlanets || typeof transitPlanets !== "object") return hits;
+  for (const t of PLANET_ORDER) {
+    const tlon = transitPlanets[t]?.longitude;
+    if (typeof tlon !== "number") continue;
+    for (const n of PLANET_ORDER) {
+      const nlon = natalPositions[n];
+      if (typeof nlon !== "number") continue;
+      let sep = Math.abs(tlon - nlon) % 360;
+      if (sep > 180) sep = 360 - sep;
+      for (const [name, ang] of Object.entries(ASPECT_ANGLES)) {
+        const orb = Math.abs(sep - ang);
+        if (orb <= orbDeg) {
+          hits.push({ transit: t, aspect: name, natal: n, orb: Number(orb.toFixed(1)) });
+        }
+      }
+    }
+  }
+  hits.sort((a, b) => a.orb - b.orb);
+  return hits;
+}
+
+export function summarizeTransit(
+  overlay: any,
+  natalPositions: Record<string, number> = {},
+): string {
   const planets = overlay?.transit?.planets;
   if (!planets || typeof planets !== "object" || Object.keys(planets).length === 0) {
     return "Today's transit data unavailable.";
@@ -251,11 +324,11 @@ export function summarizeTransit(overlay: any): string {
     out.push(`Notable transit patterns: ${names.join("; ")}.`);
   }
 
-  const cross = overlay?.cross_aspects;
-  if (Array.isArray(cross) && cross.length) {
-    const hits = cross
-      .slice(0, 8)
-      .map((c: any) => `${c.transit_planet} ${c.aspect} natal ${c.natal_planet} (${c.orb}°)`);
+  const aspects = computeTransitAspects(natalPositions, planets);
+  if (aspects.length) {
+    const hits = aspects
+      .slice(0, 10)
+      .map((a) => `transiting ${a.transit} ${a.aspect} natal ${a.natal} (${a.orb}°)`);
     out.push(`Transit-to-natal aspects: ${hits.join("; ")}.`);
   }
 
@@ -604,14 +677,14 @@ Expected: FAIL — module/exports not found.
 
 ```ts
 // server/astroContext.ts — birth/observer config, Kairos fetch, caching, composition.
-import { summarizeNatal, summarizeTransit } from "./astroFormat.ts";
+import { summarizeNatal, summarizeTransit, extractNatalPositions } from "./astroFormat.ts";
 
 export interface KairosFetcher {
   natalFull(body: any): Promise<any>;
   transitFull(body: any): Promise<any>;
 }
 
-let _natalCache: string | null = null;
+let _natalCache: { text: string; positions: Record<string, number> } | null = null;
 let _transitCache: { date: string; text: string } | null = null;
 
 /** Test helper: clear in-memory caches. */
@@ -665,7 +738,9 @@ export function defaultKairosFetcher(): KairosFetcher {
   };
 }
 
-async function natalSummary(f: KairosFetcher): Promise<string> {
+async function natalSummary(
+  f: KairosFetcher,
+): Promise<{ text: string; positions: Record<string, number> }> {
   if (_natalCache) return _natalCache;
   try {
     const data = await f.natalFull({
@@ -673,14 +748,21 @@ async function natalSummary(f: KairosFetcher): Promise<string> {
       anonymous: true,
       house_system: "whole_sign",
     });
-    _natalCache = summarizeNatal(data);
+    _natalCache = {
+      text: summarizeNatal(data),
+      positions: extractNatalPositions(data),
+    };
   } catch {
-    return "Natal chart data unavailable.";
+    return { text: "Natal chart data unavailable.", positions: {} };
   }
   return _natalCache;
 }
 
-async function transitSummary(f: KairosFetcher, today: string): Promise<string> {
+async function transitSummary(
+  f: KairosFetcher,
+  today: string,
+  natalPositions: Record<string, number>,
+): Promise<string> {
   if (_transitCache && _transitCache.date === today) return _transitCache.text;
   try {
     const obs = observer();
@@ -690,7 +772,7 @@ async function transitSummary(f: KairosFetcher, today: string): Promise<string> 
       observer_latitude: obs.lat,
       observer_longitude: obs.lon,
     });
-    const text = summarizeTransit(data);
+    const text = summarizeTransit(data, natalPositions);
     _transitCache = { date: today, text };
     return text;
   } catch {
@@ -702,11 +784,10 @@ export async function getAstroContext(
   f: KairosFetcher = defaultKairosFetcher(),
   today: string = new Date().toISOString().slice(0, 10),
 ): Promise<string> {
-  const [natal, transit] = await Promise.all([
-    natalSummary(f),
-    transitSummary(f, today),
-  ]);
-  return `${natal}\n\n${transit}`;
+  // Natal resolves first: its positions feed the transit-to-natal aspect math.
+  const natal = await natalSummary(f);
+  const transit = await transitSummary(f, today, natal.positions);
+  return `${natal.text}\n\n${transit}`;
 }
 ```
 
@@ -913,6 +994,6 @@ git commit -m "chore(arcanum): env config for LiteLLM + Kairos + birth data; dro
 ## Self-Review
 
 - **Spec coverage:** (A) model swap → Tasks 5,7. (B) personalized natal+transit pre-fetch + caching → Tasks 2,3,6. neo4j correspondences retained via existing `/api/graph/context` (untouched) + injected in Task 4. Mani dropped / MCP dormant → Task 7 Step 2. (C) graceful degradation → Tasks 2,3,5,6. (D/E) env config + birth data seed → Task 8. Verification list → Task 8 Steps 3-5. All spec sections covered.
-- **Deviation from spec:** spec proposed widening transit orbs to ~3° to populate `cross_aspects`; verification proved that field stays empty regardless, so the transit fetch omits the orb override and the extractor includes cross-aspects only when present. Logged as a Kairos follow-up.
-- **Type consistency:** `KairosFetcher.natalFull/transitFull`, `getAstroContext(f, today)`, `callLiteLLM(system, user)`, `buildDeepPrompt(card, reading, graphContext, astro)`, `summarizeNatal(natal)`, `summarizeTransit(overlay)` — names/signatures consistent across tasks and call sites in `server.ts`.
+- **Deviation from spec:** spec proposed widening transit orbs to ~3° to populate Kairos `cross_aspects`; verification proved that field stays empty regardless. Per user direction, transit-to-natal aspects are instead **computed locally** (`computeTransitAspects`) from cached natal longitudes vs current transit longitudes — verified to find 13 aspects within 3° in the fixture. Kairos `cross_aspects` is no longer used; logged as a separate follow-up.
+- **Type consistency:** `KairosFetcher.natalFull/transitFull`, `getAstroContext(f, today)`, `callLiteLLM(system, user)`, `buildDeepPrompt(card, reading, graphContext, astro)`, `summarizeNatal(natal)`, `extractNatalPositions(natal)`, `computeTransitAspects(natalPositions, transitPlanets, orb)`, `summarizeTransit(overlay, natalPositions)` — names/signatures consistent across tasks and call sites. Natal cache stores `{text, positions}`; `getAstroContext` resolves natal before transit so positions feed the aspect math.
 - **Placeholders:** none — all code and commands are concrete.
