@@ -40,13 +40,18 @@ const KAIROS_BASE = () => process.env.KAIROS_BASE || "https://raw-charts.dubtown
 export function defaultKairosFetcher(): KairosFetcher {
   return {
     async natalFull(body) {
-      const r = await fetch(`${KAIROS_BASE()}/api/v1/natal/full`, {
+      // NOTE: we source the natal chart from transit/full's embedded `.natal`,
+      // NOT /api/v1/natal/full. Only transit/full carries the `.natal._raw`
+      // shape (planets with lon/sign/deg/house_w/rx + the aspects list) that
+      // the natal extractors consume; standalone natal/full omits `_raw`.
+      const r = await fetch(`${KAIROS_BASE()}/api/v1/transit/full`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(`Kairos natal ${r.status}`);
-      return r.json();
+      const data: any = await r.json();
+      return data.natal;
     },
     async transitFull(body) {
       const r = await fetch(`${KAIROS_BASE()}/api/v1/transit/full`, {
