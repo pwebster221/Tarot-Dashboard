@@ -21,6 +21,38 @@ function clampStr(v: unknown, max = 2000): string {
   return typeof v === "string" ? v.slice(0, max) : (v == null ? "" : String(v).slice(0, max));
 }
 
+// Read-only reporeason tools the model is allowed to call.
+const ALLOWED_REASON_TOOLS = new Set([
+  "reason_identify_symbols", "reason_get_correspondence",
+  "reason_get_elemental_balance", "reason_orient",
+  "reason_traverse", "reason_synthesize",
+]);
+const REASONING_HINT =
+  "\n\nYou may call the reporeason tools (identify symbols, find correspondences, " +
+  "elemental balance) to investigate the symbolic correspondences in this reading " +
+  "before answering. Then give your interpretation.";
+
+/**
+ * Run one interpretation. When the caller opts into reasoning AND reporeason is
+ * enabled+connected, run the bounded reporeason tool loop; otherwise (or on any
+ * agent error) fall back to a single-shot completion. `reasoned` reports whether
+ * the reasoning path actually produced the result (used to decide caching).
+ */
+async function interpret(
+  system: string, user: string, wantReasoning: boolean,
+): Promise<{ text: string; reasoned: boolean }> {
+  if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
+    try {
+      const tools = reporeasonTools().filter((t) => ALLOWED_REASON_TOOLS.has(t.function.name));
+      const text = await runReasoningAgent(system + REASONING_HINT, user, tools, reporeasonRunner(), 4);
+      return { text, reasoned: true };
+    } catch (err) {
+      console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
+    }
+  }
+  return { text: await callLiteLLM(system, user), reasoned: false };
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -221,26 +253,10 @@ async function startServer() {
       let result: string;
       if (_cardInsightCache.has(cacheKey)) {
         result = _cardInsightCache.get(cacheKey)!;
-      } else if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
-        const sys = system +
-          "\n\nYou may call the reporeason tools to investigate this card's symbolic correspondences " +
-          "against the querent's chart placements before answering. Prefer reason_identify_symbols and " +
-          "reason_get_correspondence for a focused, single-card inquiry. Then give the interpretation.";
-        try {
-          const ALLOWED_TOOLS = new Set([
-            "reason_identify_symbols", "reason_get_correspondence",
-            "reason_get_elemental_balance", "reason_orient",
-            "reason_traverse", "reason_synthesize",
-          ]);
-          const tools = reporeasonTools().filter((t) => ALLOWED_TOOLS.has(t.function.name));
-          result = await runReasoningAgent(sys, user, tools, reporeasonRunner(), 4);
-          cacheInsight(cacheKey, result);
-        } catch (err) {
-          console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
-          result = await callLiteLLM(system, user);
-        }
       } else {
-        result = await callLiteLLM(system, user);
+        const r = await interpret(system, user, wantReasoning);
+        result = r.text;
+        if (r.reasoned) cacheInsight(cacheKey, result); // only cache successful reasoning
       }
       res.json({ result });
     } catch (err: any) {
@@ -252,10 +268,11 @@ async function startServer() {
   app.post("/api/ai/oracle-insight", async (req, res) => {
     try {
       const { reading } = req.body;
+      const wantReasoning = req.body.extraReasoning === true;
       const astro = await getAstroContext();
       const { system, user } = buildOraclePrompt(reading, astro);
-      const result = await callLiteLLM(system, user);
-      res.json({ result });
+      const { text } = await interpret(system, user, wantReasoning);
+      res.json({ result: text });
     } catch (err: any) {
       console.error("[AI Server Error] Oracle Insight:", err);
       res.status(500).json({ error: err.message });
@@ -265,10 +282,11 @@ async function startServer() {
   app.post("/api/ai/trend-insight", async (req, res) => {
     try {
       const { readings } = req.body;
+      const wantReasoning = req.body.extraReasoning === true;
       const astro = await getAstroContext();
       const { system, user } = buildTrendPrompt(readings, astro);
-      const result = await callLiteLLM(system, user);
-      res.json({ result });
+      const { text } = await interpret(system, user, wantReasoning);
+      res.json({ result: text });
     } catch (err: any) {
       console.error("[AI Server Error] Trend Insight:", err);
       res.status(500).json({ error: err.message });

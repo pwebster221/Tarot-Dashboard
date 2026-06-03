@@ -6,6 +6,8 @@ import { generateTrendInsight as getTrendInsight } from '../lib/ai';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../lib/AuthContext';
+import { useExtraReasoning } from '../lib/useExtraReasoning';
+import { ExtraReasoningToggle } from './ExtraReasoningToggle';
 
 interface DashboardSpreadsheetProps {
   readings: Reading[];
@@ -21,6 +23,7 @@ export function DashboardSpreadsheet({ readings }: DashboardSpreadsheetProps) {
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extraReasoning, toggleExtraReasoning] = useExtraReasoning();
 
   useEffect(() => {
     if (!currentUser) return;
@@ -48,7 +51,7 @@ export function DashboardSpreadsheet({ readings }: DashboardSpreadsheetProps) {
     setGenerating(true);
     setError(null);
     try {
-      const result = await getTrendInsight(readings.slice(0, 50));
+      const result = await getTrendInsight(readings.slice(0, 50), extraReasoning);
       setInsight(result);
       setGeneratedAt(new Date());
 
@@ -79,13 +82,14 @@ export function DashboardSpreadsheet({ readings }: DashboardSpreadsheetProps) {
       <div className="flex items-center gap-4 p-4 border-b border-white/5 bg-white/5 shrink-0">
          <h2 className="text-[#DEB564] font-serif text-lg mr-auto">Readings Dashboard</h2>
          <span className="text-[#FFFAE3]/50">{readings.length} readings</span>
-         <button 
+         <div className="w-44"><ExtraReasoningToggle checked={extraReasoning} onToggle={toggleExtraReasoning} /></div>
+         <button
            onClick={generateTrendInsight}
            disabled={generating || readings.length === 0}
            className="px-4 py-2 bg-[#2a0d4e]/60 text-[#FFFAE3] border border-[#DEB564]/30 rounded flex items-center gap-2 hover:bg-[#2a0d4e]/80 transition-colors disabled:opacity-50"
          >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            Analyze Trends
+            {generating ? (extraReasoning ? 'Reasoning…' : 'Analyzing…') : 'Analyze Trends'}
          </button>
       </div>
 

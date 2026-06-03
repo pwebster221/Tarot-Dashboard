@@ -43,12 +43,12 @@ export async function generateDeepInterpretation(card: DrawnCard, reading: Readi
   }
 }
 
-export async function generateOracleInsight(reading: Reading): Promise<string> {
+export async function generateOracleInsight(reading: Reading, extraReasoning: boolean = false): Promise<string> {
   try {
     const response = await fetch("/api/ai/oracle-insight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reading })
+        body: JSON.stringify({ reading, extraReasoning })
     });
     
     if (!response.ok) {
@@ -64,12 +64,12 @@ export async function generateOracleInsight(reading: Reading): Promise<string> {
   }
 }
 
-export async function generateTrendInsight(readings: Reading[]): Promise<string> {
+export async function generateTrendInsight(readings: Reading[], extraReasoning: boolean = false): Promise<string> {
   try {
     const response = await fetch("/api/ai/trend-insight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ readings })
+        body: JSON.stringify({ readings, extraReasoning })
     });
     
     if (!response.ok) {
