@@ -66,9 +66,19 @@ The AI runtime is split into small, unit-tested modules under `server/`:
 - `normalizePositionId()` collapses many backend position labels (`"Present Situation"`, `"goal"`, `"hopes/fears"`, etc.) into a small canonical set used by [src/components/SpreadVisualizer.tsx](src/components/SpreadVisualizer.tsx) for layout. When adding a new spread layout, extend both this function and the visualizer.
 - [src/lib/ai.ts](src/lib/ai.ts) — thin client wrappers around the `/api/ai/*` endpoints. The browser never imports `@anthropic-ai/sdk`.
 
-### Auth
+### Auth (Authentik OIDC — BFF pattern)
 
-Firebase Auth + Firestore in [src/lib/firebase.ts](src/lib/firebase.ts) and [src/lib/AuthContext.tsx](src/lib/AuthContext.tsx). `firestoreDatabaseId` is read from [firebase-applet-config.json](firebase-applet-config.json). `AuthProvider` blocks rendering until the auth state resolves. User profile (`{ name, email }`) is loaded from `users/{uid}`; the `name` field is what filters readings to the current reader. The Firestore schema is documented in [firebase-blueprint.json](firebase-blueprint.json) (entities: `User`, `Insight`); rules in [firestore.rules](firestore.rules).
+Firebase auth was replaced by **Authentik OIDC**, with the Express server acting as a confidential OIDC client (backend-for-frontend). The SPA holds no secrets and asks the server who the user is.
+
+- [server/oidc.ts](server/oidc.ts) — framework-agnostic OIDC core: `buildAuthUrl` (PKCE S256), `exchangeCode`, `refreshTokens`, `validateToken` (jose + Authentik JWKS; **issuer AND audience pinned** to this app's client_id), `isExpired`, `logoutUrl`. Reads `AUTHENTIK_*` env vars.
+- [server/auth.ts](server/auth.ts) — Express layer: `registerAuthRoutes(app)` mounts `GET /api/auth/{login,callback,logout,me}`; `requireAuth` middleware validates the `por_session` cookie (auto-refreshing via `por_refresh`) and sets `req.user = {sub,email,name}`. `safeReturnTo` blocks open-redirects.
+- [server/authProfile.ts](server/authProfile.ts) — at callback, MERGEs a `(:User {sub})` node on the **readings graph (:7687)** so `HAS_READING` links and sub-scoping have an anchor.
+- [server.ts](server.ts) — `app.use("/api", requireAuth)` gates all `/api/*` except the auth routes + `/api/health`; the readings proxy injects `user_sub = req.user.sub` so the backend scopes readings to the caller (and 404s non-owners).
+- [src/lib/AuthContext.tsx](src/lib/AuthContext.tsx) — SPA `AuthProvider` polls `GET /api/auth/me`; unauthenticated users see [src/components/LandingPage.tsx](src/components/LandingPage.tsx) with a "Sign In" link to `/api/auth/login`. Registration/enrollment lives in Authentik.
+
+Per-user data (reading notes, saved insights, dashboard trend insight) persists to the Repository (:7687) keyed by the Authentik `sub` via [server/userData.ts](server/userData.ts) and the `/api/readings/:id/{annotations,note,insights/saved}` + `/api/trend-insight` endpoints. Card-layout drag positions are intentionally session-only (not persisted).
+
+Required env: `AUTHENTIK_BASE_URL`, `AUTHENTIK_APP_SLUG=arcanum`, `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, `AUTHENTIK_REDIRECT_URI=https://readings.pathsofreverence.com/api/auth/callback`, `NEO4J_READINGS_URI`/`NEO4J_READINGS_USER`/`NEO4J_READINGS_PASSWORD` (the :7687 readings graph), `SESSION_COOKIE_SECURE=true`.
 
 ## Place in the wider monorepo
 
