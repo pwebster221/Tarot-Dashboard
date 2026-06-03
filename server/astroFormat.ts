@@ -1,11 +1,11 @@
 // server/astroFormat.ts — pure text extractors for Kairos chart payloads.
 
-const PLANET_ORDER = [
+export const PLANET_ORDER = [
   "Sun", "Moon", "Mercury", "Venus", "Mars",
   "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto",
 ];
 
-const MAJOR_ASPECTS = new Set([
+export const MAJOR_ASPECTS = new Set([
   "Conjunction", "Opposition", "Square", "Trine", "Sextile",
 ]);
 
