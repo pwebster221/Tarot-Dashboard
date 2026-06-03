@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -10,6 +11,7 @@ import { getAstroContext, getCardContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
+import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -143,13 +145,23 @@ async function startServer() {
     _cardInsightCache.set(key, val);
   };
 
-  // JSON middleware
+  // Cookie + JSON parsing
+  app.use(cookieParser());
   app.use(express.json());
+
+  // Public auth routes + health (registered BEFORE the /api guard so they bypass it).
+  registerAuthRoutes(app);
+  app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+  // Everything else under /api requires a valid Authentik session.
+  app.use("/api", requireAuth);
 
   // API routes
   app.get("/api/readings", async (req, res) => {
     try {
-      const apiUrl = `https://readings.dubtown-server.us/readings?${new URLSearchParams(req.query as any).toString()}`;
+      const params = new URLSearchParams(req.query as any);
+      params.set("user_sub", (req as any).user.sub);
+      const apiUrl = `https://readings.dubtown-server.us/readings?${params.toString()}`;
       console.log(`[Proxy] Fetching: ${apiUrl}`);
       
       const apiKey = process.env.DUBTOWN_API_KEY;
@@ -182,7 +194,7 @@ async function startServer() {
 
   app.get("/api/readings/:id", async (req, res) => {
     try {
-      const apiUrl = `https://readings.dubtown-server.us/readings/${req.params.id}`;
+      const apiUrl = `https://readings.dubtown-server.us/readings/${req.params.id}?user_sub=${encodeURIComponent((req as any).user.sub)}`;
       console.log(`[Proxy] Fetching detail: ${apiUrl}`);
 
       const apiKey = process.env.DUBTOWN_API_KEY;
@@ -208,11 +220,6 @@ async function startServer() {
       console.error("[Proxy] Critical error fetching reading detail:", error);
       res.status(500).json({ error: "Internal server error during proxy request" });
     }
-  });
-
-  // Health check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
   });
 
   app.post("/api/upload-cards", upload.array('cards', 100), (req, res) => {
