@@ -86,3 +86,9 @@ test("getCardContext fetches one overlay per day, shared across cards", async ()
   await getCardContext("The Sun", f, "2026-06-03");     // new day → refetch
   assert.equal(calls.transit, 2);
 });
+
+test("getCardContext degrades to CHART SNAPSHOT unavailable when overlay fetch fails", async () => {
+  const f = { async natalFull() { throw new Error("down"); }, async transitFull() { throw new Error("down"); } };
+  const text = await getCardContext("The Devil", f, "2026-06-02");
+  assert.equal(text, "CHART SNAPSHOT: unavailable.");
+});
