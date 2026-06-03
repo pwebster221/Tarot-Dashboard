@@ -12,6 +12,7 @@ import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/p
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
+import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -347,6 +348,86 @@ async function startServer() {
           context: `Graph context for ${req.body.cardName || 'the card'} is currently unavailable. Proceed analyzing based on standard esoteric traditions.`
         }
       });
+    }
+  });
+
+  // ── User annotations (persisted to the Repository :7687 by Authentik sub) ──
+  app.get("/api/readings/:id/annotations", async (req, res) => {
+    try {
+      res.json(await getAnnotations((req as any).user.sub, req.params.id));
+    } catch (e: any) {
+      console.error("[annotations:get]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/readings/:id/note", async (req, res) => {
+    const text = typeof req.body?.text === "string" ? req.body.text : null;
+    if (text === null) return res.status(400).json({ error: "text (string) required" });
+    try {
+      await upsertNote((req as any).user.sub, req.params.id, text);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[note:put]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/readings/:id/note", async (req, res) => {
+    try {
+      await deleteNote((req as any).user.sub, req.params.id);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[note:delete]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/readings/:id/insights/saved", async (req, res) => {
+    const cardId = req.body?.cardId;
+    const text = req.body?.text;
+    if (typeof cardId !== "string" || typeof text !== "string") {
+      return res.status(400).json({ error: "cardId and text (strings) required" });
+    }
+    try {
+      await saveInsight((req as any).user.sub, req.params.id, cardId, text);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[insight:save]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/readings/:id/insights/saved", async (req, res) => {
+    const cardId = (req.body?.cardId ?? req.query.cardId) as string | undefined;
+    if (!cardId) return res.status(400).json({ error: "cardId required" });
+    try {
+      await unsaveInsight((req as any).user.sub, req.params.id, cardId);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[insight:unsave]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/trend-insight", async (req, res) => {
+    try {
+      res.json(await getTrendInsight((req as any).user.sub));
+    } catch (e: any) {
+      console.error("[trend:get]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/trend-insight", async (req, res) => {
+    const text = typeof req.body?.text === "string" ? req.body.text : null;
+    if (text === null) return res.status(400).json({ error: "text (string) required" });
+    try {
+      await setTrendInsight((req as any).user.sub, text);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[trend:put]", e);
+      res.status(500).json({ error: e.message });
     }
   });
 

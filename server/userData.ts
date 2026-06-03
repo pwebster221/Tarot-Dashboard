@@ -61,7 +61,7 @@ function getDriver(): Driver {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /** Create or replace the note a user left on a reading.
- *  No-op if the Reading node doesn't exist (MATCH skips the write). */
+ *  The User MERGE always fires; only the NOTED relationship write is skipped when the Reading node doesn't exist. */
 export async function upsertNote(
   sub: string,
   readingId: string,
