@@ -44,3 +44,45 @@ test("agent throws on non-200", async () => {
   mock.method(globalThis, "fetch", async () => new Response("boom", { status: 500 }));
   await assert.rejects(() => runReasoningAgent("s", "u", [], { async run() { return ""; } }, 4), /LiteLLM 500/);
 });
+
+test("runner throw becomes a tool-result error string, not a crash", async () => {
+  env();
+  let phase = 0;
+  const seen: any[] = [];
+  mock.method(globalThis, "fetch", async (_url: any, init: any) => {
+    phase++;
+    seen.push(JSON.parse(init.body));
+    if (phase === 1) {
+      return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: null,
+        tool_calls: [{ id: "c1", type: "function", function: { name: "boom", arguments: "{}" } }] } }] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: "RECOVERED" } }] }), { status: 200 });
+  });
+  const runner = { async run() { throw new Error("tool blew up"); } };
+  const out = await runReasoningAgent("s", "u", toOpenAITools([{ name: "boom", inputSchema: {} }]), runner, 4);
+  assert.equal(out, "RECOVERED");
+  // 2nd request must contain a tool message carrying the error text.
+  const toolMsg = seen[1].messages.find((m: any) => m.role === "tool");
+  assert.match(toolMsg.content, /tool error: tool blew up/);
+});
+
+test("hitting maxIters triggers a final no-tools forced-answer pass", async () => {
+  env();
+  let phase = 0;
+  let lastBody: any = null;
+  mock.method(globalThis, "fetch", async (_url: any, init: any) => {
+    phase++;
+    lastBody = JSON.parse(init.body);
+    // Always return a tool call so the loop never exits early.
+    if (phase <= 2) {
+      return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: null,
+        tool_calls: [{ id: "c" + phase, type: "function", function: { name: "loop", arguments: "{}" } }] } }] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: "FORCED" } }] }), { status: 200 });
+  });
+  const runner = { async run() { return "ok"; } };
+  const out = await runReasoningAgent("s", "u", toOpenAITools([{ name: "loop", inputSchema: {} }]), runner, 2);
+  assert.equal(out, "FORCED");
+  assert.equal(phase, 3);                       // 2 loop iters + 1 forced pass
+  assert.equal(lastBody.tools, undefined);      // forced pass sends no tools
+});
