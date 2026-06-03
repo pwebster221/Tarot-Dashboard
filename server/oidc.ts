@@ -70,7 +70,7 @@ export async function refreshTokens(refreshToken: string): Promise<TokenSet> {
       client_secret: env("AUTHENTIK_CLIENT_SECRET"),
     }),
   });
-  if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Token refresh failed ${res.status}: ${await res.text()}`);
   return res.json() as Promise<TokenSet>;
 }
 
@@ -84,10 +84,16 @@ function getJWKS() {
   return _JWKS;
 }
 
+// NOTE (cutover): we validate the ACCESS token and pin aud=client_id. Authentik sets
+// aud=client_id on tokens by default; if login fails with invalid_token after the
+// arcanum client is created, verify the access token's actual `aud` claim
+// (Authentik admin → token preview) and adjust if it differs.
 export async function validateToken(token: string): Promise<TokenPayload | null> {
   try {
+    // audience pinned to this client — reject tokens minted for other PoR apps on the shared Authentik
     const { payload } = await jwtVerify(token, getJWKS(), {
       issuer: `${env("AUTHENTIK_BASE_URL")}/application/o/${env("AUTHENTIK_APP_SLUG")}/`,
+      audience: env("AUTHENTIK_CLIENT_ID"),
     });
     return payload as unknown as TokenPayload;
   } catch {
