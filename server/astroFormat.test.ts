@@ -14,12 +14,17 @@ test("summarizeNatal includes header, Sun placement, and whole-sign houses", () 
   const text = summarizeNatal(overlay.natal);
   assert.match(text, /NATAL CHART/);
   assert.match(text, /Sun[^\n]*Capricorn/);   // Paul's Sun is Capricorn
-  assert.match(text, /H8/);                     // Sun whole-sign house = 8
+  assert.match(text, /Sun[^\n]*H8/);             // Sun whole-sign house = 8
 });
 
 test("summarizeNatal degrades gracefully on empty input", () => {
   assert.equal(summarizeNatal(null), "Natal chart data unavailable.");
   assert.equal(summarizeNatal({}), "Natal chart data unavailable.");
+});
+
+test("summarizeNatal renders a major natal aspects line", () => {
+  const text = summarizeNatal(overlay.natal);
+  assert.match(text, /Major natal aspects:/);
 });
 
 test("extractNatalPositions returns longitudes for the major planets", () => {

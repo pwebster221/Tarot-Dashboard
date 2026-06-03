@@ -24,12 +24,14 @@ export function summarizeNatal(natal: any): string {
     lines.push(`${name} in ${p.sign} ${p.deg}°${house}${rx}`);
   }
 
+  if (lines.length === 0) return "Natal chart data unavailable.";
+
   const rising = natal?.houses?.whole_sign?.[0]?.sign;
   const risingLine = rising ? `Rising (whole-sign): ${rising}. ` : "";
 
   const aspects = Array.isArray(natal?._raw?.aspects) ? natal._raw.aspects : [];
   const majors = aspects
-    .filter((a: any) => MAJOR_ASPECTS.has(a.name) && a.orb <= 3)
+    .filter((a: any) => MAJOR_ASPECTS.has(a.name) && typeof a.orb === "number" && a.orb <= 3)
     .slice(0, 8)
     .map((a: any) => `${a.p1} ${a.name} ${a.p2} (${a.orb.toFixed(1)}°)`);
   const aspectLine = majors.length
