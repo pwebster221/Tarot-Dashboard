@@ -7,6 +7,7 @@ import multer from "multer";
 import { callLiteLLM } from "./server/llm.ts";
 import { getAstroContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
+// MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -54,7 +55,7 @@ async function startServer() {
   const PORT = 3000;
 
   // Initialize MCP Servers
-  const mcpClients = new Map<string, Client>();
+  const mcpClients = new Map<string, Client>(); // retained for ENABLE_MCP re-enable / shutdown; not read by interpretation
   const mcpTools = new Map<string, any>();
 
   const servers = [
