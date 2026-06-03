@@ -23,3 +23,14 @@ test("sign rulers are traditional", () => {
   assert.equal(SIGN_RULER["Capricorn"], "Saturn");
   assert.equal(SIGN_RULER["Virgo"], "Mercury");
 });
+
+import { buildPipCorrespondence } from "./correspondences.ts";
+
+test("buildPipCorrespondence yields 36 pips (ranks 2-10 x 4 suits)", () => {
+  assert.equal(Object.keys(buildPipCorrespondence()).length, 36);
+});
+
+test("aces and unknown cards return empty anchor", () => {
+  assert.deepEqual(cardAnchor("Ace of Wands"), {});
+  assert.deepEqual(cardAnchor("Nonsense Card"), {});
+});
