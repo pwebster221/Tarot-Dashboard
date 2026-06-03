@@ -57,3 +57,86 @@ export function extractNatalPositions(natal: any): Record<string, number> {
   }
   return out;
 }
+
+const ASPECT_ANGLES: Record<string, number> = {
+  Conjunction: 0, Sextile: 60, Square: 90, Trine: 120, Opposition: 180,
+};
+
+export interface TransitAspect {
+  transit: string; aspect: string; natal: string; orb: number;
+}
+
+/**
+ * Transit-to-natal aspects computed locally (Kairos cross_aspects is broken).
+ * For each transiting planet vs each natal planet, the angular separation is
+ * matched against the major aspect angles within `orbDeg`. Returns tightest-first.
+ */
+export function computeTransitAspects(
+  natalPositions: Record<string, number>,
+  transitPlanets: any,
+  orbDeg = 3,
+): TransitAspect[] {
+  const hits: TransitAspect[] = [];
+  if (!transitPlanets || typeof transitPlanets !== "object") return hits;
+  for (const t of PLANET_ORDER) {
+    const tlon = transitPlanets[t]?.longitude;
+    if (typeof tlon !== "number") continue;
+    for (const n of PLANET_ORDER) {
+      const nlon = natalPositions[n];
+      if (typeof nlon !== "number") continue;
+      let sep = Math.abs(tlon - nlon) % 360;
+      if (sep > 180) sep = 360 - sep;
+      for (const [name, ang] of Object.entries(ASPECT_ANGLES)) {
+        const orb = Math.abs(sep - ang);
+        if (orb <= orbDeg) {
+          hits.push({ transit: t, aspect: name, natal: n, orb: Number(orb.toFixed(1)) });
+        }
+      }
+    }
+  }
+  hits.sort((a, b) => a.orb - b.orb);
+  return hits;
+}
+
+export function summarizeTransit(
+  overlay: any,
+  natalPositions: Record<string, number> = {},
+): string {
+  const planets = overlay?.transit?.planets;
+  if (!planets || typeof planets !== "object" || Object.keys(planets).length === 0) {
+    return "Today's transit data unavailable.";
+  }
+
+  const positions: string[] = [];
+  const retro: string[] = [];
+  for (const name of PLANET_ORDER) {
+    const p = planets[name];
+    if (!p) continue;
+    positions.push(`${name} in ${p.sign} ${Math.round(p.sign_degree)}°`);
+    if (p.retrograde) retro.push(name);
+  }
+
+  const out: string[] = [
+    "TODAY'S SKY (mundane transits):",
+    positions.join(", ") + ".",
+  ];
+  if (retro.length) out.push(`Retrograde: ${retro.join(", ")}.`);
+
+  const pats = overlay?.deep_analysis?.patterns?.patterns;
+  if (Array.isArray(pats) && pats.length) {
+    const names = pats
+      .map((p: any) => `${p.pattern} (${(p.planets || []).join(", ")})`)
+      .slice(0, 4);
+    out.push(`Notable transit patterns: ${names.join("; ")}.`);
+  }
+
+  const aspects = computeTransitAspects(natalPositions, planets);
+  if (aspects.length) {
+    const hits = aspects
+      .slice(0, 10)
+      .map((a) => `transiting ${a.transit} ${a.aspect} natal ${a.natal} (${a.orb}°)`);
+    out.push(`Transit-to-natal aspects: ${hits.join("; ")}.`);
+  }
+
+  return out.join("\n");
+}
