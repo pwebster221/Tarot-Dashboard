@@ -1192,3 +1192,28 @@ Expected: `orphaned = 0`.
 - Rate-limiting on AI endpoints (other half of PAT-586).
 - Reconcile :7687 readings-projection vs :7688 auth-profile User stores ecosystem-wide.
 - Retire/merge the 2 legacy sub-less `User` shells on :7687.
+
+---
+
+## Phase DP — Repository persistence (ADDED 2026-06-03, before cutover)
+
+**Why:** Firebase wasn't only auth — Firestore (keyed on the Firebase `uid`) also persisted reading **notes**, **saved insights**, and the dashboard **trend insight**. Removing Firebase (D6) made these session-only. Per operator decision, this user-generated content is spiritual-profile signal and must persist to the **Repository (production Neo4j :7687)** keyed by the Authentik `sub`. Card-layout drag positions are cosmetic UI state and are intentionally **dropped** (no persistence) — SpreadVisualizer is already session-only post-D6, so no further work there.
+
+**Home & writer:** the Arcanum BFF (`server.ts`) writes directly to `:7687` (it already provisions `User{sub}` there via `authProfile.ts`). All endpoints are behind `requireAuth`; the `sub` comes from the session, never the client.
+
+**Schema (on :7687):**
+- Note (one per user+reading): `(:User {sub})-[:NOTED {text, updated_at}]->(:Reading {id})`
+- Saved insight (per user+reading+card): `(:User {sub})-[:SAVED_INSIGHT {card_id, text, saved_at}]->(:Reading {id})`
+- Trend insight (per user): properties on the `User` node — `u.trend_insight`, `u.trend_insight_at`
+
+### Task DP1: `server/userData.ts` — graph read/write helpers (TDD)
+Create `server/userData.ts` (own lazy driver via `NEO4J_READINGS_URI`, mirroring `authProfile.ts`) exporting pure Cypher constants + functions: `upsertNote(sub, readingId, text)`, `deleteNote(sub, readingId)`, `saveInsight(sub, readingId, cardId, text)`, `unsaveInsight(sub, readingId, cardId)`, `getAnnotations(sub, readingId)` → `{ note: string|null, savedInsights: [{card_id, text}] }`, `getTrendInsight(sub)`, `setTrendInsight(sub, text)`. Unit test asserts the Cypher constants MERGE on `sub`+reading id (+card_id) and set the documented props — no live DB in unit tests (lazy driver, import opens nothing).
+
+### Task DP2: wire annotation endpoints into `server.ts` (behind requireAuth)
+`GET /api/readings/:id/annotations`, `PUT /api/readings/:id/note` `{text}`, `DELETE /api/readings/:id/note`, `POST /api/readings/:id/insights/saved` `{cardId,text}`, `DELETE /api/readings/:id/insights/saved` `{cardId}`, `GET /api/trend-insight`, `PUT /api/trend-insight` `{text}`. Each reads `req.user.sub`. Registered AFTER the `app.use("/api", requireAuth)` gate. Runtime smoke: unauthenticated → 401.
+
+### Task DP3: rewire the SPA to the new endpoints
+- `ReadingDetailPane.tsx`: on load fetch `/api/readings/:id/annotations` → hydrate note + saved-insight markers; note edit → `PUT`/`DELETE`; saved-insight toggle → `POST`/`DELETE`.
+- `DashboardSpreadsheet.tsx`: on load `GET /api/trend-insight`; on generate, `PUT /api/trend-insight`.
+- `SpreadVisualizer.tsx`: leave session-only (card layouts dropped). No change.
+- `npm run build` + `npm run lint` clean.
