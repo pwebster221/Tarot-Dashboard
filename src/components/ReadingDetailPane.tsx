@@ -21,6 +21,16 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
   const [isEditingMeaning, setIsEditingMeaning] = useState(false);
   const [editedMeaning, setEditedMeaning] = useState('');
   const [customMeanings, setCustomMeanings] = useState<Record<string, string>>({});
+  // "Extra reasoning" toggle — per-browser preference, default on. When on, deep
+  // interpretation uses the reporeason reasoning loop; off = fast single-shot.
+  const [extraReasoning, setExtraReasoning] = useState<boolean>(() => {
+    try { return localStorage.getItem('arcanum.extraReasoning') !== 'false'; } catch { return true; }
+  });
+  const toggleExtraReasoning = () => setExtraReasoning(v => {
+    const next = !v;
+    try { localStorage.setItem('arcanum.extraReasoning', String(next)); } catch { /* ignore */ }
+    return next;
+  });
 
   // Reset edit state when card changes
   useEffect(() => {
@@ -113,12 +123,14 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
 
   const handleGenerateInterpretation = async () => {
     if (!selectedCard) return;
-    const cacheKey = `card-${selectedCard.card.id}-${selectedCard.position.name}`;
-    if (insightCache[cacheKey]) return; // already generated
+    // Fresh-insight cache is keyed by reasoning mode so toggling regenerates
+    // instead of returning the other mode's cached result.
+    const cacheKey = `card-${selectedCard.card.id}-${selectedCard.position.name}-${extraReasoning ? 'r' : 's'}`;
+    if (insightCache[cacheKey]) return; // already generated for this mode
 
     setIsGenerating(true);
     try {
-      const insight = await generateDeepInterpretation(selectedCard, reading);
+      const insight = await generateDeepInterpretation(selectedCard, reading, extraReasoning);
       setInsightCache(prev => ({ ...prev, [cacheKey]: insight }));
     } catch (err: any) {
       console.error(err);
@@ -144,7 +156,7 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
     }
   };
 
-  const currentDetailInsight = selectedCard ? insightCache[`card-${selectedCard.card.id}-${selectedCard.position.name}`] : null;
+  const currentDetailInsight = selectedCard ? insightCache[`card-${selectedCard.card.id}-${selectedCard.position.name}-${extraReasoning ? 'r' : 's'}`] : null;
   const currentOracleInsight = !selectedCard ? insightCache[`oracle-${reading.id}`] : null;
 
   return (
@@ -289,13 +301,29 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                         </div>
                       )}
                       
-                      <button 
+                      <label className="flex items-center justify-between gap-2 px-1 cursor-pointer select-none">
+                        <span className="flex items-center gap-1.5 text-[10px] text-[#FFFAE3]/60">
+                          <Sparkles className="w-3 h-3 text-[#DEB564]/60" />
+                          Extra reasoning <span className="opacity-40">(deeper · slower)</span>
+                        </span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={extraReasoning}
+                          onClick={toggleExtraReasoning}
+                          className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${extraReasoning ? 'bg-[#DEB564]/70' : 'bg-white/15'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black transition-transform ${extraReasoning ? 'translate-x-4' : ''}`}></span>
+                        </button>
+                      </label>
+
+                      <button
                         onClick={handleGenerateInterpretation}
                         disabled={isGenerating}
                         className="w-full py-3 bg-[#2a0d4e]/60 border border-[#DEB564]/30 text-[#FFFAE3]/90 rounded-lg text-xs hover:bg-[#2a0d4e]/60 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        {isGenerating ? "Consulting Graph..." : current || saved ? "Regenerate Insight" : "Ask Oracle (Use Context Graph)"}
+                        {isGenerating ? (extraReasoning ? "Reasoning…" : "Consulting Graph…") : current || saved ? "Regenerate Insight" : extraReasoning ? "Ask Oracle (Deep Reasoning)" : "Ask Oracle (Use Context Graph)"}
                       </button>
                     </div>
                   );

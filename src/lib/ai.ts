@@ -20,14 +20,14 @@ export async function fetchGraphContext(cardName: string): Promise<string> {
   }
 }
 
-export async function generateDeepInterpretation(card: DrawnCard, reading: Reading): Promise<string> {
+export async function generateDeepInterpretation(card: DrawnCard, reading: Reading, extraReasoning: boolean = false): Promise<string> {
   try {
     const graphContext = await fetchGraphContext(card.card.name);
 
     const response = await fetch("/api/ai/deep-interpretation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ card, reading, graphContext })
+        body: JSON.stringify({ card, reading, graphContext, extraReasoning })
     });
     
     if (!response.ok) {

@@ -197,6 +197,9 @@ async function startServer() {
       const { card, reading, graphContext } = req.body;
       const cardName = card?.card?.name;
       const today = new Date().toISOString().slice(0, 10);
+      // Client opt-in (dashboard "Extra reasoning" toggle). Absent → false, so
+      // non-UI callers default to the cheap single-shot path.
+      const wantReasoning = req.body.extraReasoning === true;
 
       if (reading) {
         reading.question = clampStr(reading.question, 1000);
@@ -206,8 +209,9 @@ async function startServer() {
       if (card) card.specificMeaning = clampStr(card.specificMeaning, 1000);
       const safeGraph = clampStr(graphContext, 4000);
 
+      // Reasoning vs single-shot produce different results — key the cache on the mode too.
       const promptHash = createHash("sha256")
-        .update(JSON.stringify({ card, reading, graphContext: safeGraph }))
+        .update(JSON.stringify({ card, reading, graphContext: safeGraph, wantReasoning }))
         .digest("hex").slice(0, 32);
       const cacheKey = `${promptHash}-${today}`;
 
@@ -217,7 +221,7 @@ async function startServer() {
       let result: string;
       if (_cardInsightCache.has(cacheKey)) {
         result = _cardInsightCache.get(cacheKey)!;
-      } else if (process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
+      } else if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
         const sys = system +
           "\n\nYou may call the reporeason tools to investigate this card's symbolic correspondences " +
           "against the querent's chart placements before answering. Prefer reason_identify_symbols and " +
