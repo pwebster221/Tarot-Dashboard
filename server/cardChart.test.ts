@@ -36,3 +36,31 @@ test("resolveCardFocus falls back to ruling planet for unmapped cards", () => {
   assert.match(txt, /Mercury|Virgo/);
   assert.ok(txt.length > 0);
 });
+
+test("buildCardPlacementIndex returns {} for missing/invalid input", () => {
+  assert.deepEqual(buildCardPlacementIndex(null), {});
+  assert.deepEqual(buildCardPlacementIndex({}), {});
+});
+
+test("a card's refs sort direct attributions before decan pips", () => {
+  const idx = buildCardPlacementIndex(natal);
+  for (const refs of Object.values(idx)) {
+    const schemes = refs.map((r) => r.scheme);
+    const firstPip = schemes.indexOf("decan_pip");
+    const lastDirect = Math.max(schemes.lastIndexOf("sign_major"), schemes.lastIndexOf("planet_major"));
+    if (firstPip !== -1 && lastDirect !== -1) assert.ok(lastDirect < firstPip);
+  }
+});
+
+test("resolveCardFocus appends an 'Active now:' transit line for The Devil", () => {
+  const idx = buildCardPlacementIndex(natal);
+  const txt = resolveCardFocus("The Devil", natal, idx, overlay);
+  assert.match(txt, /Active now:/);
+});
+
+test("resolveCardFocus gives an element-only note for an unanchored court card", () => {
+  // Knight of Wands is not a direct placement in the fixture; cardAnchor returns element only.
+  const idx = buildCardPlacementIndex(natal);
+  const txt = resolveCardFocus("Knight of Wands", natal, idx, overlay);
+  assert.match(txt, /Fire energy/);
+});

@@ -2,7 +2,7 @@ import { cardAnchor, SIGN_RULER } from "./correspondences.ts";
 import { computeTransitAspects, extractNatalPositions } from "./astroFormat.ts";
 
 export interface PlacementRef {
-  body: string; sign: string; house: number;
+  body: string; sign: string; house: number; // Placidus house from the esoteric tier; displayed text uses whole-sign (house_w) via _raw
   dignity?: string; scheme: string;
 }
 
@@ -71,7 +71,7 @@ export function resolveCardFocus(
     if (line && !bodies.includes(r.body)) {
       bodies.push(r.body);
       const dignity = r.dignity ? ` [${r.dignity}]` : "";
-      lines.push(`${cardName} resonates with your ${line}${dignity} (via ${r.scheme.replace("_", " ")}).`);
+      lines.push(`${cardName} resonates with your ${line}${dignity} (via ${r.scheme.replaceAll("_", " ")}).`);
     }
   }
 
