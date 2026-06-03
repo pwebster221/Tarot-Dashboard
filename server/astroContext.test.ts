@@ -57,3 +57,14 @@ test("getAstroContext degrades when a fetcher throws", async () => {
   const text = await getAstroContext(f, "2026-06-02");
   assert.match(text, /unavailable/);
 });
+
+test("natal failure still yields transit output (partial degradation)", async () => {
+  const overlayLocal = overlay;
+  const f: KairosFetcher = {
+    async natalFull() { throw new Error("natal down"); },
+    async transitFull() { return overlayLocal; },
+  };
+  const text = await getAstroContext(f, "2026-06-02");
+  assert.match(text, /Natal chart data unavailable\./);
+  assert.match(text, /TODAY'S SKY/);
+});

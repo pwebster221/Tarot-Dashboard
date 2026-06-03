@@ -74,10 +74,11 @@ async function natalSummary(
       text: summarizeNatal(data),
       positions: extractNatalPositions(data),
     };
-  } catch {
+  } catch (err) {
+    console.error("[astroContext] natal fetch failed:", err);
     return { text: "Natal chart data unavailable.", positions: {} };
   }
-  return _natalCache;
+  return _natalCache!;
 }
 
 async function transitSummary(
@@ -97,7 +98,8 @@ async function transitSummary(
     const text = summarizeTransit(data, natalPositions);
     _transitCache = { date: today, text };
     return text;
-  } catch {
+  } catch (err) {
+    console.error("[astroContext] transit fetch failed:", err);
     return "Today's transit data unavailable.";
   }
 }
