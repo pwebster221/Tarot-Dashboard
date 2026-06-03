@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { summarizeNatal, extractNatalPositions, summarizeTransit, computeTransitAspects } from "./astroFormat.ts";
+import { summarizeNatal, extractNatalPositions, summarizeTransit, computeTransitAspects, summarizeChartLean } from "./astroFormat.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const overlay = JSON.parse(
@@ -58,4 +58,11 @@ test("summarizeTransit appends locally-computed transit-to-natal aspects", () =>
 
 test("summarizeTransit degrades gracefully", () => {
   assert.equal(summarizeTransit(null), "Today's transit data unavailable.");
+});
+
+test("summarizeChartLean is one short block with sun sign + a transit note", () => {
+  const text = summarizeChartLean(overlay.natal, overlay);
+  assert.match(text, /CHART SNAPSHOT/);
+  assert.match(text, /Capricorn/);     // Paul's Sun
+  assert.ok(text.split("\n").length <= 3);
 });

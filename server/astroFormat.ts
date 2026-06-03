@@ -98,6 +98,20 @@ export function computeTransitAspects(
   return hits;
 }
 
+/** 1-2 line whole-chart grounding shared across all cards in a reading. */
+export function summarizeChartLean(natal: any, overlay: any): string {
+  const raw = natal?._raw?.planets;
+  if (!raw) return "CHART SNAPSHOT: unavailable.";
+  const sun = raw.Sun, moon = raw.Moon;
+  const rising = natal?.houses?.whole_sign?.[0]?.sign;
+  const head = `CHART SNAPSHOT: Sun ${sun?.sign ?? "?"}, Moon ${moon?.sign ?? "?"}` +
+    (rising ? `, ${rising} rising` : "") + ".";
+  const tp = overlay?.transit?.planets || {};
+  const retro = PLANET_ORDER.filter((n) => tp[n]?.retrograde);
+  const note = retro.length ? `Today: ${retro.join(", ")} retrograde.` : "";
+  return note ? `${head}\n${note}` : head;
+}
+
 export function summarizeTransit(
   overlay: any,
   natalPositions: Record<string, number> = {},
