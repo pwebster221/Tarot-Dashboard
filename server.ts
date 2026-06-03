@@ -7,6 +7,8 @@ import multer from "multer";
 import { callLiteLLM } from "./server/llm.ts";
 import { getAstroContext, getCardContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
+import { runReasoningAgent } from "./server/agent.ts";
+import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -87,6 +89,10 @@ async function startServer() {
   } else {
     console.log("[MCP] Dormant (ENABLE_MCP != 'true'); interpretation uses pre-fetched context.");
   }
+
+  await initReporeason();
+
+  const _cardInsightCache = new Map<string, string>();
 
   // JSON middleware
   app.use(express.json());
@@ -176,9 +182,30 @@ async function startServer() {
   app.post("/api/ai/deep-interpretation", async (req, res) => {
     try {
       const { card, reading, graphContext } = req.body;
-      const astro = await getCardContext(card?.card?.name);
+      const cardName = card?.card?.name;
+      const today = new Date().toISOString().slice(0, 10);
+      const cacheKey = `${card?.card?.id}-${card?.position?.name}-${today}`;
+      const astro = await getCardContext(cardName);
       const { system, user } = buildDeepPrompt(card, reading, graphContext, astro);
-      const result = await callLiteLLM(system, user);
+
+      let result: string;
+      if (_cardInsightCache.has(cacheKey)) {
+        result = _cardInsightCache.get(cacheKey)!;
+      } else if (process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
+        const sys = system +
+          "\n\nYou may call the reporeason tools to investigate this card's symbolic correspondences " +
+          "against the querent's chart placements before answering. Prefer reason_identify_symbols and " +
+          "reason_get_correspondence for a focused, single-card inquiry. Then give the interpretation.";
+        try {
+          result = await runReasoningAgent(sys, user, reporeasonTools(), reporeasonRunner(), 4);
+          _cardInsightCache.set(cacheKey, result);
+        } catch (err) {
+          console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
+          result = await callLiteLLM(system, user);
+        }
+      } else {
+        result = await callLiteLLM(system, user);
+      }
       res.json({ result });
     } catch (err: any) {
       console.error("[AI Server Error] Deep Interpretation:", err);
