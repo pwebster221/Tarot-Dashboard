@@ -5,7 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import multer from "multer";
 import { callLiteLLM } from "./server/llm.ts";
-import { getAstroContext } from "./server/astroContext.ts";
+import { getAstroContext, getCardContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
@@ -176,7 +176,7 @@ async function startServer() {
   app.post("/api/ai/deep-interpretation", async (req, res) => {
     try {
       const { card, reading, graphContext } = req.body;
-      const astro = await getAstroContext();
+      const astro = await getCardContext(card?.card?.name);
       const { system, user } = buildDeepPrompt(card, reading, graphContext, astro);
       const result = await callLiteLLM(system, user);
       res.json({ result });

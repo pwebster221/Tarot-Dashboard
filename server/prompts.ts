@@ -27,7 +27,7 @@ Provide a "Deep Interpretation" for the following card drawn in a reading.
 **Esoteric Repository Correspondences:**
 ${graphContext}
 
-**Querent's Astrological Context:**
+**Astrological Context (this card):**
 ${astro}
 
 Synthesize a profound, nuanced, unique interpretation. ~3-4 paragraphs.`;
