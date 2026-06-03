@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sessionCookieOptions, requireAuth } from "./auth.ts";
+import { sessionCookieOptions, requireAuth, safeReturnTo } from "./auth.ts";
 
 test("session cookie options are httpOnly+lax with 1h maxAge (ms)", () => {
   const o = sessionCookieOptions();
@@ -19,4 +19,13 @@ test("requireAuth returns 401 when no cookies present", async () => {
   assert.equal(status, 401);
   assert.equal(nextCalled, false);
   assert.deepEqual(body, { error: "unauthorized" });
+});
+
+test("safeReturnTo allows relative paths, rejects absolute/protocol-relative/non-string", () => {
+  assert.equal(safeReturnTo("/practice"), "/practice");
+  assert.equal(safeReturnTo("/"), "/");
+  assert.equal(safeReturnTo("https://evil.com"), "/");
+  assert.equal(safeReturnTo("//evil.com"), "/");
+  assert.equal(safeReturnTo(undefined), "/");
+  assert.equal(safeReturnTo(["/a", "/b"]), "/");
 });

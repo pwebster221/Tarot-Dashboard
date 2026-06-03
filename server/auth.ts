@@ -18,6 +18,12 @@ function shortCookieOptions() {
   return { httpOnly: true, secure: secure(), sameSite: "lax" as const, path: "/", maxAge: 60 * 10 * 1000 };
 }
 
+/** Only allow same-origin relative paths as post-login redirect targets
+ *  (blocks open-redirect: rejects absolute URLs and protocol-relative `//host`). */
+export function safeReturnTo(raw: unknown): string {
+  return typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+}
+
 function setSession(res: Response, tokens: TokenSet) {
   res.cookie(SESSION_COOKIE, tokens.access_token, sessionCookieOptions());
   if (tokens.refresh_token) res.cookie(REFRESH_COOKIE, tokens.refresh_token, refreshCookieOptions());
@@ -48,7 +54,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 /** Register /api/auth/* routes on the Express app. */
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/login", (req, res) => {
-    const returnTo = (req.query.redirect as string) ?? "/";
+    const returnTo = safeReturnTo(req.query.redirect);
     const { url, state, codeVerifier } = buildAuthUrl();
     res.cookie(PKCE_VERIFIER_COOKIE, codeVerifier, shortCookieOptions());
     res.cookie(PKCE_STATE_COOKIE, state, shortCookieOptions());
@@ -62,7 +68,7 @@ export function registerAuthRoutes(app: Express) {
     if (req.query.error) return res.redirect(302, `/?error=${encodeURIComponent(String(req.query.error))}`);
     const savedState = req.cookies?.[PKCE_STATE_COOKIE];
     const codeVerifier = req.cookies?.[PKCE_VERIFIER_COOKIE];
-    const returnTo = req.cookies?.[RETURN_TO_COOKIE] ?? "/";
+    const returnTo = safeReturnTo(req.cookies?.[RETURN_TO_COOKIE]);
     res.clearCookie(PKCE_VERIFIER_COOKIE, { path: "/" });
     res.clearCookie(PKCE_STATE_COOKIE, { path: "/" });
     res.clearCookie(RETURN_TO_COOKIE, { path: "/" });
