@@ -69,7 +69,7 @@ The OIDC helper module is ported near-verbatim from the Hub's `src/lib/oidc.ts` 
 
 New Authentik **Application + Provider** (`slug: arcanum`), own `client_id`/`client_secret`, redirect `https://readings.pathsofreverence.com/api/auth/callback`, scopes `openid email profile offline_access` with **`offline_access` granted at the provider** (avoids the 1-hour-expiry gap PAT-509 hit). Reuses the existing CT 501-local tunnel — same origin, no new ingress.
 
-Independent per-app session: Arcanum sets its own `por_session` on `readings.pathsofreverence.com` (not a shared `.pathsofreverence.com` cookie). Authentik SSO makes the second login across PoR apps silent anyway.
+**Session model — SSO carry-over (decided 2026-06-03).** Arcanum keeps its own per-app `por_session` cookie on `readings.pathsofreverence.com` and remains its own OIDC client. "Log in once, carries over between areas" is delivered by **Authentik SSO**, not a shared cookie: because Authentik holds its own IdP session, a user who has already authenticated to the Hub or Forms is returned to Arcanum's `/api/auth/callback` without re-entering credentials — an invisible sub-second redirect. This touches only Arcanum; the shipped Hub (PAT-509) and Forms (PAT-510) are not modified. (A literal single shared cookie / single-logout-everywhere was explicitly de-scoped, as it would require consolidating all PoR apps onto one OIDC client.) Logout is per-app. To make carry-over feel seamless, an unauthenticated top-level page request may auto-initiate `/api/auth/login` (silent when an Authentik session exists); the `LandingPage` with an explicit "Sign In" button remains the fallback for brand-new visitors.
 
 ### 4.2 Sub-keyed reading linkage (end-to-end)
 `sub` (Authentik subject) is the single stable identity key across the readings graph.
@@ -104,7 +104,7 @@ Independent per-app session: Arcanum sets its own `por_session` on `readings.pat
 
 ## 5. Data Migration & Decommission
 
-- **One-time orphan backfill (:7687).** For the 3 existing orphaned readings, link any whose `record_email` matches a known user's email (`MERGE (u:User {sub})…(u)-[:HAS_READING]->(r)`); leave genuinely unowned readings unlinked. Run as a reviewed one-off, not automated.
+- **One-time orphan backfill (:7687).** Link all 3 existing orphaned readings to Paul (decided 2026-06-03): `MATCH (u:User {sub:'924a9054d8e720cdc65cb9984629cb88faae3f1853adf39fd21d68486754939a'}), (r:Reading) WHERE r.source IN ['typeform','arcanum_form'] AND NOT (:User)-[:HAS_READING]->(r) MERGE (u)-[:HAS_READING]->(r)`. Reviewed one-off, not automated.
 - **Firebase decommission.** Remove all Firebase code/config from the repo (above). The Firebase project itself (`aerobic-guide-468317-s1`) can be deleted out-of-band after cutover; not required for this change. The `firebase-applet-config.json` `apiKey` is a public web key (low sensitivity) but should be removed from the repo regardless.
 - **Env changes (CT 501 `.env`, gitignored):** add `AUTHENTIK_BASE_URL`, `AUTHENTIK_APP_SLUG=arcanum`, `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, `AUTHENTIK_REDIRECT_URI=https://readings.pathsofreverence.com/api/auth/callback`, `NEO4J_READINGS_URI=bolt://10.20.0.61:7687`, `NEO4J_READINGS_USER`, `NEO4J_READINGS_PASSWORD`, `SESSION_COOKIE_SECURE=true`. Back up `.env` first (`.env.pre-authentik.bak`).
 
