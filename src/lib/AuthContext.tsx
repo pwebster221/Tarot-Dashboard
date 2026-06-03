@@ -1,59 +1,25 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from './firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-interface UserProfile {
-  name: string;
-  email: string;
-}
+interface AuthUser { sub: string; email: string; name: string; }
+interface AuthContextType { currentUser: AuthUser | null; loading: boolean; }
 
-interface AuthContextType {
-  currentUser: User | null;
-  userProfile: UserProfile | null;
-  loading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  currentUser: null,
-  userProfile: null,
-  loading: true,
-});
-
+const AuthContext = createContext<AuthContextType>({ currentUser: null, loading: true });
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserProfile(docSnap.data() as UserProfile);
-          } else {
-            setUserProfile(null);
-          }
-        } catch (error) {
-          console.error("Failed to load user profile:", error);
-          setUserProfile(null);
-        }
-      } else {
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u) => setCurrentUser(u))
+      .catch(() => setCurrentUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading }}>
+    <AuthContext.Provider value={{ currentUser, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

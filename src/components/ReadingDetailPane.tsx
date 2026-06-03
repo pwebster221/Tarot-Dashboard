@@ -3,9 +3,6 @@ import { Check, Sun, ArrowLeft, Sparkles, Loader2, Edit2, Save, Bookmark } from 
 import { DrawnCard, Reading } from '../types';
 import Markdown from 'react-markdown';
 import { generateDeepInterpretation, generateOracleInsight } from '../lib/ai';
-import { db } from '../lib/firebase';
-import { doc, setDoc, deleteDoc, getDocs, query, collection, where, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '../lib/AuthContext';
 import { useExtraReasoning } from '../lib/useExtraReasoning';
 import { ExtraReasoningToggle } from './ExtraReasoningToggle';
 
@@ -16,10 +13,9 @@ interface ReadingDetailPaneProps {
 }
 
 export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: ReadingDetailPaneProps) {
-  const { currentUser } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [insightCache, setInsightCache] = useState<Record<string, string>>({}); // newly generated
-  const [savedInsights, setSavedInsights] = useState<Record<string, string>>({}); // from firestore
+  const [savedInsights, setSavedInsights] = useState<Record<string, string>>({}); // in-memory saved
   const [isEditingMeaning, setIsEditingMeaning] = useState(false);
   const [editedMeaning, setEditedMeaning] = useState('');
   const [customMeanings, setCustomMeanings] = useState<Record<string, string>>({});
@@ -34,82 +30,16 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
     }
   }, [selectedCard, reading, customMeanings]);
 
-  // Load saved insights
-  useEffect(() => {
-    if (!reading || !currentUser) return;
-    const loadSavedInsights = async () => {
-      try {
-        const q = query(
-          collection(db, 'users', currentUser.uid, 'insights'),
-          where('readingId', '==', reading.id)
-        );
-        const snap = await getDocs(q);
-        const newSaved: Record<string, string> = {};
-        snap.forEach(docSnap => {
-          const data = docSnap.data();
-          newSaved[data.insightKey] = data.text;
-        });
-        setSavedInsights(newSaved);
-      } catch (err) {
-        console.error("Failed to load saved insights", err);
-      }
-    };
-    loadSavedInsights();
-  }, [reading?.id, currentUser]);
-
-  // Load saved notes (custom meanings)
-  useEffect(() => {
-    if (!reading || !currentUser) return;
-    const loadSavedNotes = async () => {
-      try {
-        const q = query(
-          collection(db, 'users', currentUser.uid, 'notes'),
-          where('readingId', '==', reading.id)
-        );
-        const snap = await getDocs(q);
-        const newNotes: Record<string, string> = {};
-        snap.forEach(docSnap => {
-          const data = docSnap.data();
-          newNotes[data.positionId] = data.text;
-        });
-        setCustomMeanings(newNotes);
-      } catch (err) {
-        console.error("Failed to load saved notes", err);
-      }
-    };
-    loadSavedNotes();
-  }, [reading?.id, currentUser]);
-
-  const toggleSaveInsight = async (cacheKey: string, text: string) => {
-    if (!currentUser || !reading) return;
-    
-    // We use a safe doc ID
-    const safeKey = cacheKey.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const docId = `${reading.id}_${safeKey}`.substring(0, 128);
-    const docRef = doc(db, 'users', currentUser.uid, 'insights', docId);
-
-    try {
-      if (savedInsights[cacheKey]) {
-        // Unsave
-        await deleteDoc(docRef);
-        setSavedInsights(prev => {
-          const updated = { ...prev };
-          delete updated[cacheKey];
-          return updated;
-        });
-      } else {
-        // Save
-        await setDoc(docRef, {
-          readingId: reading.id,
-          insightKey: cacheKey,
-          text: text,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        setSavedInsights(prev => ({ ...prev, [cacheKey]: text }));
-      }
-    } catch (err) {
-      console.error("Failed to toggle insight save state:", err);
+  const toggleSaveInsight = (cacheKey: string, text: string) => {
+    if (!reading) return;
+    if (savedInsights[cacheKey]) {
+      setSavedInsights(prev => {
+        const updated = { ...prev };
+        delete updated[cacheKey];
+        return updated;
+      });
+    } else {
+      setSavedInsights(prev => ({ ...prev, [cacheKey]: text }));
     }
   };
 
@@ -198,25 +128,11 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                          <Edit2 className="w-3 h-3" />
                        </button>
                      ) : (
-                       <button 
-                         onClick={async () => {
+                       <button
+                         onClick={() => {
                            setIsEditingMeaning(false);
                            const posId = `${reading.id}_${selectedCard.position.id}`;
                            setCustomMeanings(prev => ({ ...prev, [posId]: editedMeaning }));
-                           
-                           if (currentUser) {
-                             try {
-                               const docRef = doc(db, 'users', currentUser.uid, 'notes', posId);
-                               await setDoc(docRef, {
-                                 readingId: reading.id,
-                                 positionId: posId,
-                                 text: editedMeaning,
-                                 updatedAt: serverTimestamp()
-                               });
-                             } catch (err) {
-                               console.error("Failed to save note:", err);
-                             }
-                           }
                          }}
                          className="text-[#DEB564] hover:text-[#DEB564]/80 transition-colors p-1 flex items-center gap-1"
                          title="Save meaning"
