@@ -21,16 +21,20 @@ function clampStr(v: unknown, max = 2000): string {
   return typeof v === "string" ? v.slice(0, max) : (v == null ? "" : String(v).slice(0, max));
 }
 
-// Read-only reporeason tools the model is allowed to call.
+// Stateless reporeason tools only. The session-pipeline tools (reason_orient /
+// reason_traverse / reason_synthesize) require a reason_start_session →
+// reason_finalize_session lifecycle the agent loop does not manage; calling them
+// bare returns "no session" errors and the model then asks the USER for a session
+// id instead of interpreting. These three return data directly, no session needed.
 const ALLOWED_REASON_TOOLS = new Set([
-  "reason_identify_symbols", "reason_get_correspondence",
-  "reason_get_elemental_balance", "reason_orient",
-  "reason_traverse", "reason_synthesize",
+  "reason_identify_symbols", "reason_get_correspondence", "reason_get_elemental_balance",
 ]);
 const REASONING_HINT =
-  "\n\nYou may call the reporeason tools (identify symbols, find correspondences, " +
-  "elemental balance) to investigate the symbolic correspondences in this reading " +
-  "before answering. Then give your interpretation.";
+  "\n\nYou may call the reporeason tools (reason_identify_symbols, " +
+  "reason_get_correspondence, reason_get_elemental_balance) to investigate the " +
+  "symbolic correspondences in this reading before answering. All the data you need " +
+  "is already in this prompt — never ask the user for more input or a session id; " +
+  "always deliver the interpretation yourself.";
 
 /**
  * Run one interpretation. When the caller opts into reasoning AND reporeason is
