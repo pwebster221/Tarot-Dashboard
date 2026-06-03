@@ -27,12 +27,13 @@ async function chat(body: any): Promise<any> {
 }
 
 export async function runReasoningAgent(
-  system: string, user: string, tools: OAITool[], runner: ToolRunner, maxIters = 4,
+  system: string, user: string, tools: OAITool[], runner: ToolRunner, maxIters = 4, maxToolCalls = 8,
 ): Promise<string> {
   const messages: any[] = [
     { role: "system", content: system },
     { role: "user", content: user },
   ];
+  let toolCalls = 0;
   for (let i = 0; i < maxIters; i++) {
     const data = await chat({ messages, tools: tools.length ? tools : undefined });
     const msg = data?.choices?.[0]?.message;
@@ -42,6 +43,12 @@ export async function runReasoningAgent(
     if (!calls || !calls.length) return msg.content ?? "";
     for (const call of calls) {
       let result: string;
+      if (toolCalls >= maxToolCalls) {
+        result = "tool budget exhausted";
+        messages.push({ role: "tool", tool_call_id: call.id, content: result });
+        continue;
+      }
+      toolCalls++;
       try {
         const args = JSON.parse(call.function?.arguments || "{}");
         result = await runner.run(call.function.name, args);
@@ -50,6 +57,7 @@ export async function runReasoningAgent(
       }
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }
+    if (toolCalls >= maxToolCalls) break;
   }
   const data = await chat({ messages: [...messages, { role: "user", content: "Provide your final interpretation now, no more tools." }] });
   return data?.choices?.[0]?.message?.content ?? "";

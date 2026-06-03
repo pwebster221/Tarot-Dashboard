@@ -66,6 +66,25 @@ test("runner throw becomes a tool-result error string, not a crash", async () =>
   assert.match(toolMsg.content, /tool error: tool blew up/);
 });
 
+test("agent caps total tool calls and forces a final answer", async () => {
+  process.env.LITELLM_BASE = "http://t/v1"; process.env.LITELLM_API_KEY = "k";
+  let phase = 0;
+  mock.method(globalThis, "fetch", async (_u: any, init: any) => {
+    phase++;
+    const body = JSON.parse(init.body);
+    if (body.tools) {
+      return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: null,
+        tool_calls: [{ id: "c" + phase, type: "function", function: { name: "loop", arguments: "{}" } }] } }] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: "DONE" } }] }), { status: 200 });
+  });
+  let runs = 0;
+  const runner = { async run() { runs++; return "ok"; } };
+  const out = await runReasoningAgent("s", "u", toOpenAITools([{ name: "loop", inputSchema: {} }]), runner, 10, 2);
+  assert.equal(out, "DONE");
+  assert.equal(runs, 2);   // never dispatched more than the cap
+});
+
 test("hitting maxIters triggers a final no-tools forced-answer pass", async () => {
   env();
   let phase = 0;

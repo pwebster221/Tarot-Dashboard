@@ -3,6 +3,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createHash } from "node:crypto";
 import multer from "multer";
 import { callLiteLLM } from "./server/llm.ts";
 import { getAstroContext, getCardContext } from "./server/astroContext.ts";
@@ -15,6 +16,10 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 (global as any).EventSource = EventSource;
+
+function clampStr(v: unknown, max = 2000): string {
+  return typeof v === "string" ? v.slice(0, max) : (v == null ? "" : String(v).slice(0, max));
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,6 +98,14 @@ async function startServer() {
   await initReporeason();
 
   const _cardInsightCache = new Map<string, string>();
+  const CARD_CACHE_MAX = 500;
+  const cacheInsight = (key: string, val: string) => {
+    if (_cardInsightCache.size >= CARD_CACHE_MAX) {
+      const oldest = _cardInsightCache.keys().next().value;
+      if (oldest !== undefined) _cardInsightCache.delete(oldest);
+    }
+    _cardInsightCache.set(key, val);
+  };
 
   // JSON middleware
   app.use(express.json());
@@ -184,9 +197,22 @@ async function startServer() {
       const { card, reading, graphContext } = req.body;
       const cardName = card?.card?.name;
       const today = new Date().toISOString().slice(0, 10);
-      const cacheKey = `${card?.card?.id}-${card?.position?.name}-${today}`;
+
+      if (reading) {
+        reading.question = clampStr(reading.question, 1000);
+        reading.querent = clampStr(reading.querent, 200);
+        reading.summary = clampStr(reading.summary, 2000);
+      }
+      if (card) card.specificMeaning = clampStr(card.specificMeaning, 1000);
+      const safeGraph = clampStr(graphContext, 4000);
+
+      const promptHash = createHash("sha256")
+        .update(JSON.stringify({ card, reading, graphContext: safeGraph }))
+        .digest("hex").slice(0, 32);
+      const cacheKey = `${promptHash}-${today}`;
+
       const astro = await getCardContext(cardName);
-      const { system, user } = buildDeepPrompt(card, reading, graphContext, astro);
+      const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro);
 
       let result: string;
       if (_cardInsightCache.has(cacheKey)) {
@@ -197,8 +223,14 @@ async function startServer() {
           "against the querent's chart placements before answering. Prefer reason_identify_symbols and " +
           "reason_get_correspondence for a focused, single-card inquiry. Then give the interpretation.";
         try {
-          result = await runReasoningAgent(sys, user, reporeasonTools(), reporeasonRunner(), 4);
-          _cardInsightCache.set(cacheKey, result);
+          const ALLOWED_TOOLS = new Set([
+            "reason_identify_symbols", "reason_get_correspondence",
+            "reason_get_elemental_balance", "reason_orient",
+            "reason_traverse", "reason_synthesize",
+          ]);
+          const tools = reporeasonTools().filter((t) => ALLOWED_TOOLS.has(t.function.name));
+          result = await runReasoningAgent(sys, user, tools, reporeasonRunner(), 4);
+          cacheInsight(cacheKey, result);
         } catch (err) {
           console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
           result = await callLiteLLM(system, user);
