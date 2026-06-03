@@ -1,5 +1,6 @@
 // server/astroContext.ts — birth/observer config, Kairos fetch, caching, composition.
-import { summarizeNatal, summarizeTransit, extractNatalPositions } from "./astroFormat.ts";
+import { summarizeNatal, summarizeTransit, extractNatalPositions, summarizeChartLean } from "./astroFormat.ts";
+import { buildCardPlacementIndex, resolveCardFocus, type PlacementRef } from "./cardChart.ts";
 
 export interface KairosFetcher {
   natalFull(body: any): Promise<any>;
@@ -8,11 +9,17 @@ export interface KairosFetcher {
 
 let _natalCache: { text: string; positions: Record<string, number> } | null = null;
 let _transitCache: { date: string; text: string } | null = null;
+let _overlayCache: { date: string; data: any } | null = null;
+let _indexCache: Record<string, PlacementRef[]> | null = null;
+let _leanCache: { date: string; text: string } | null = null;
 
 /** Test helper: clear in-memory caches. */
 export function _resetCaches(): void {
   _natalCache = null;
   _transitCache = null;
+  _overlayCache = null;
+  _indexCache = null;
+  _leanCache = null;
 }
 
 function birthData() {
@@ -117,4 +124,36 @@ export async function getAstroContext(
   const natal = await natalSummary(f);
   const transit = await transitSummary(f, today, natal.positions);
   return `${natal.text}\n\n${transit}`;
+}
+
+async function getOverlay(f: KairosFetcher, today: string): Promise<any | null> {
+  if (_overlayCache && _overlayCache.date === today) return _overlayCache.data;
+  try {
+    const data = await f.transitFull({
+      birth_data: birthData(), anonymous: true,
+      observer_latitude: observer().lat, observer_longitude: observer().lon,
+    });
+    _overlayCache = { date: today, data };
+    return data;
+  } catch (err) {
+    console.error("[astroContext] card-context overlay fetch failed:", err);
+    return null;
+  }
+}
+
+export async function getCardContext(
+  cardName: string,
+  f: KairosFetcher = defaultKairosFetcher(),
+  today: string = new Date().toISOString().slice(0, 10),
+): Promise<string> {
+  const overlay = await getOverlay(f, today);
+  const natal = overlay?.natal;
+  if (!natal) return "CHART SNAPSHOT: unavailable.";
+
+  if (!_indexCache) _indexCache = buildCardPlacementIndex(natal);   // static per querent
+  if (!_leanCache || _leanCache.date !== today) {
+    _leanCache = { date: today, text: summarizeChartLean(natal, overlay) };
+  }
+  const focus = resolveCardFocus(cardName, natal, _indexCache, overlay);
+  return focus ? `${_leanCache.text}\n\n${focus}` : _leanCache.text;
 }

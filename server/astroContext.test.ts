@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { getAstroContext, _resetCaches, type KairosFetcher } from "./astroContext.ts";
+import { getAstroContext, getCardContext, _resetCaches, type KairosFetcher } from "./astroContext.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const overlay = JSON.parse(
@@ -67,4 +67,22 @@ test("natal failure still yields transit output (partial degradation)", async ()
   const text = await getAstroContext(f, "2026-06-02");
   assert.match(text, /Natal chart data unavailable\./);
   assert.match(text, /TODAY'S SKY/);
+});
+
+test("getCardContext composes lean summary + card focus", async () => {
+  const { f } = makeFetcher();
+  const text = await getCardContext("The Devil", f, "2026-06-02");
+  assert.match(text, /CHART SNAPSHOT/);
+  assert.match(text, /ASTROLOGICAL FOCUS/);
+  assert.match(text, /Capricorn/);
+});
+
+test("getCardContext fetches one overlay per day, shared across cards", async () => {
+  const { f, calls } = makeFetcher();
+  await getCardContext("The Devil", f, "2026-06-02");
+  await getCardContext("The Star", f, "2026-06-02");   // same day → no refetch
+  assert.equal(calls.transit, 1);   // overlay (transit/full) fetched once
+  assert.equal(calls.natal, 0);     // natal comes from the overlay's .natal
+  await getCardContext("The Sun", f, "2026-06-03");     // new day → refetch
+  assert.equal(calls.transit, 2);
 });
