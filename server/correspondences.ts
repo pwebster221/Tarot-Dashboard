@@ -75,6 +75,7 @@ const PIP = buildPipCorrespondence();
 const COURT_RANKS = ["Page", "Knight", "Queen", "King"];
 
 export function cardAnchor(cardName: string): CardAnchor {
+  if (!cardName) return {};
   if (MAJOR[cardName]) return MAJOR[cardName];
   if (PIP[cardName]) return PIP[cardName];
   const court = COURT_RANKS.find((r) => cardName.startsWith(r + " of "));

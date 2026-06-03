@@ -33,4 +33,5 @@ test("buildPipCorrespondence yields 36 pips (ranks 2-10 x 4 suits)", () => {
 test("aces and unknown cards return empty anchor", () => {
   assert.deepEqual(cardAnchor("Ace of Wands"), {});
   assert.deepEqual(cardAnchor("Nonsense Card"), {});
+  assert.deepEqual(cardAnchor(undefined as any), {});   // missing card name must not throw
 });

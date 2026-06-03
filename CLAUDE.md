@@ -31,6 +31,8 @@ Node >= 22 is required (declared in [package.json](package.json)).
 - `CURRENT_LATITUDE`, `CURRENT_LONGITUDE` — current observer location for the daily transit overlay. If birth/observer vars are missing, astro context degrades to "unavailable" placeholders (logged) but interpretation still runs.
 - `DUBTOWN_API_KEY` — Bearer token for the readings backend proxy; required in production (the `/api/readings*` routes return 503 without it).
 - `ENABLE_MCP` — optional; set to `"true"` to re-enable the dormant MCP client loop. Default off.
+- `ENABLE_REPOREASON` — optional; `"true"` activates per-card live reasoning (alder-1-0 calls the reporeason MCP engine) on `deep-interpretation`. Default off. Expensive/slow (~30-40s per uncached card) — gated + per-card cached.
+- `REPOREASON_URL` — reporeason MCP endpoint (default `https://reporeason.dubtown-server.us/mcp`).
 - `GEMINI_API_KEY` — legacy, exposed to the client via Vite `define`. Not used by current code; leave blank.
 
 ## Architecture
@@ -40,7 +42,7 @@ Node >= 22 is required (declared in [package.json](package.json)).
 [server.ts](server.ts) does five things in one process:
 1. Holds **dormant MCP scaffolding** (`mcpClients`/`mcpTools` Maps, the `servers` list, the SDK imports). The connect-at-boot loop only runs when `ENABLE_MCP="true"`; by default it logs a dormancy notice and skips connecting. Interpretation no longer uses live tools — it uses pre-fetched context instead (see below).
 2. Proxies `/api/readings*` to `https://readings.dubtown-server.us/readings*` with the Dubtown bearer token (the browser never sees the key).
-3. Hosts `/api/ai/{deep-interpretation,oracle-insight,trend-insight}` — each fetches astro context, builds a prompt, and makes one `callLiteLLM` completion (no loop). See "AI interpretation" below.
+3. Hosts `/api/ai/{deep-interpretation,oracle-insight,trend-insight}`. `oracle`/`trend` fetch whole-reading astro context and make one `callLiteLLM` completion. `deep-interpretation` builds **per-card** context (`getCardContext`) and — when `ENABLE_REPOREASON=true` — runs a bounded reporeason tool-calling loop on top of it (else single-shot). See "AI interpretation" below.
 4. Hosts `/api/upload-cards` — multer disk upload to `public/cards/`, filenames normalized via `normalizeCardName()` (lowercase, strip leading number/`The `, spaces → underscores). The same normalization lives in [src/lib/api.ts](src/lib/api.ts) — keep them in sync.
 5. In dev (`NODE_ENV=development` or `VITE_DEV_SERVER=true`), spins up Vite in middleware mode. In prod, serves `dist/` + `public/` and SPA-falls-back to `index.html`.
 
@@ -49,10 +51,14 @@ Node >= 22 is required (declared in [package.json](package.json)).
 The AI runtime is split into small, unit-tested modules under `server/`:
 - [server/llm.ts](server/llm.ts) — `callLiteLLM(system, user)`: one OpenAI-shaped chat completion against `LITELLM_BASE` with model `alder-1-0`. No streaming, no tools.
 - [server/astroFormat.ts](server/astroFormat.ts) — pure extractors that turn Kairos payloads into compact text: `summarizeNatal`, `extractNatalPositions`, `summarizeTransit`, and `computeTransitAspects` (transit-to-natal aspects are computed locally from natal vs current longitudes, because Kairos's `cross_aspects` field is broken/empty).
-- [server/astroContext.ts](server/astroContext.ts) — `getAstroContext()`: fetches the Kairos natal (`/api/v1/natal/full`) and daily transit (`/api/v1/transit/full`) charts via an injectable fetcher, **caches the natal for the process lifetime and the transit per calendar day**, and composes them into one text block. Degrades gracefully (logs + placeholder) on Kairos failure.
-- [server/prompts.ts](server/prompts.ts) — pure `buildDeepPrompt`/`buildOraclePrompt`/`buildTrendPrompt`, each returning `{ system, user }` with the astro context injected.
+- [server/astroContext.ts](server/astroContext.ts) — `getAstroContext()` (oracle/trend: whole-chart natal+transit, natal cached for process life, transit per day) AND `getCardContext(cardName)` (deep: one cached `transit/full` overlay per day → lean shared summary + a per-card focused slice). Degrades gracefully (logs + placeholder) on Kairos failure.
+- [server/correspondences.ts](server/correspondences.ts) — static Golden Dawn card→planet/sign table (22 Majors, 36 decan pips, courts→element) used as the fallback anchor when a card has no direct placement.
+- [server/cardChart.ts](server/cardChart.ts) — `buildCardPlacementIndex` (inverts Kairos `deep_analysis.esoteric.placements[]` into card→placement) and `resolveCardFocus` (direct placement hit → ruling-planet fallback → element note; appends transit-to-natal aspects for the linked body). This is what makes each card read differently.
+- [server/prompts.ts](server/prompts.ts) — pure `buildDeepPrompt`/`buildOraclePrompt`/`buildTrendPrompt`, each returning `{ system, user }` with astro context injected.
+- [server/agent.ts](server/agent.ts) — `runReasoningAgent`: bounded OpenAI function-calling loop (caps: `maxIters`=4, `maxToolCalls`=8, forced final answer) dispatching tool calls via an injected runner. Used for the reporeason path.
+- [server/reporeason.ts](server/reporeason.ts) — optional reporeason MCP client (`initReporeason`/`reporeasonReady`/`reporeasonTools`/`reporeasonRunner`), gated by `ENABLE_REPOREASON`. Connect failure degrades to disabled (logged), never throws.
 
-Each AI endpoint is now three lines: `getAstroContext()` → build the prompt → `callLiteLLM`. If you add a new AI endpoint, follow that same shape and add a prompt builder rather than inlining prompt strings.
+`oracle`/`trend` endpoints follow `getAstroContext()` → build prompt → `callLiteLLM`. `deep-interpretation` is `getCardContext()` → build prompt → (cache check → reporeason loop OR `callLiteLLM`), with a per-card cache keyed on a sha256 of the request inputs + day, and untrusted free-text clamped before it enters the prompt. If you add a new AI endpoint, add a prompt builder rather than inlining prompt strings.
 
 ### Frontend data flow
 
