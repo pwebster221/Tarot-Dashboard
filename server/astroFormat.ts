@@ -111,7 +111,7 @@ export function summarizeTransit(
   const retro: string[] = [];
   for (const name of PLANET_ORDER) {
     const p = planets[name];
-    if (!p) continue;
+    if (!p || !p.sign || typeof p.sign_degree !== "number") continue;
     positions.push(`${name} in ${p.sign} ${Math.round(p.sign_degree)}°`);
     if (p.retrograde) retro.push(name);
   }
@@ -125,16 +125,17 @@ export function summarizeTransit(
   const pats = overlay?.deep_analysis?.patterns?.patterns;
   if (Array.isArray(pats) && pats.length) {
     const names = pats
-      .map((p: any) => `${p.pattern} (${(p.planets || []).join(", ")})`)
+      .map((p: any) => (p.pattern ? `${p.pattern} (${(p.planets || []).join(", ")})` : null))
+      .filter(Boolean)
       .slice(0, 4);
-    out.push(`Notable transit patterns: ${names.join("; ")}.`);
+    if (names.length) out.push(`Notable transit patterns: ${names.join("; ")}.`);
   }
 
   const aspects = computeTransitAspects(natalPositions, planets);
   if (aspects.length) {
     const hits = aspects
       .slice(0, 10)
-      .map((a) => `transiting ${a.transit} ${a.aspect} natal ${a.natal} (${a.orb}°)`);
+      .map((a) => `transiting ${a.transit} ${a.aspect} natal ${a.natal} (${a.orb.toFixed(1)}°)`);
     out.push(`Transit-to-natal aspects: ${hits.join("; ")}.`);
   }
 

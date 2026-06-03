@@ -43,7 +43,7 @@ test("summarizeTransit includes today's sky and patterns; no aspects without nat
 test("computeTransitAspects finds major aspects within orb, sorted tightest-first", () => {
   const pos = extractNatalPositions(overlay.natal);
   const a = computeTransitAspects(pos, overlay.transit.planets, 3);
-  assert.ok(a.length >= 5);                  // fixture has ~13 within 3°
+  assert.equal(a.length, 13);   // committed fixture has exactly 13 within 3°
   assert.ok(a[0].orb <= a[a.length - 1].orb);
   // transiting Pluto is exactly conjunct natal Mercury in the fixture (~0.0°)
   assert.ok(a.some((h) => h.transit === "Pluto" && h.aspect === "Conjunction" && h.natal === "Mercury"));
