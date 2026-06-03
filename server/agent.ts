@@ -51,6 +51,7 @@ export async function runReasoningAgent(
       toolCalls++;
       try {
         const args = JSON.parse(call.function?.arguments || "{}");
+        console.log(`[agent] tool call ${toolCalls}/${maxToolCalls}: ${call.function.name}`);
         result = await runner.run(call.function.name, args);
       } catch (err: any) {
         result = `tool error: ${err.message}`;
