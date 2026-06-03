@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Reading } from '../types';
 import { Sparkles, Loader2 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -17,13 +17,43 @@ export function DashboardSpreadsheet({ readings }: DashboardSpreadsheetProps) {
   const [error, setError] = useState<string | null>(null);
   const [extraReasoning, toggleExtraReasoning] = useExtraReasoning();
 
+  // Load persisted trend insight on mount.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/trend-insight', { credentials: 'include' });
+        if (!res.ok) throw new Error(`trend-insight fetch ${res.status}`);
+        const data = await res.json() as { text: string | null; at: string | null };
+        if (data.text) {
+          setInsight(data.text);
+          setGeneratedAt(data.at ? new Date(data.at) : null);
+        }
+      } catch (err) {
+        console.error('[DashboardSpreadsheet] trend-insight load failed — degrading gracefully', err);
+      }
+    })();
+  }, []);
+
   const generateTrendInsight = async () => {
     setGenerating(true);
     setError(null);
     try {
       const result = await getTrendInsight(readings.slice(0, 50), extraReasoning);
       setInsight(result);
-      setGeneratedAt(new Date());
+      const now = new Date();
+      setGeneratedAt(now);
+      // Persist the newly generated trend insight.
+      try {
+        await fetch('/api/trend-insight', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: result }),
+        });
+      } catch (persistErr) {
+        console.error('[DashboardSpreadsheet] trend-insight persist failed', persistErr);
+        // Non-fatal — insight is still shown in-session.
+      }
     } catch (err: any) {
       setError(err.message || String(err));
     } finally {

@@ -15,12 +15,48 @@ interface ReadingDetailPaneProps {
 export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: ReadingDetailPaneProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [insightCache, setInsightCache] = useState<Record<string, string>>({}); // newly generated
-  const [savedInsights, setSavedInsights] = useState<Record<string, string>>({}); // in-memory saved
+  const [savedInsights, setSavedInsights] = useState<Record<string, string>>({}); // API-backed saved insights keyed by cardId
   const [isEditingMeaning, setIsEditingMeaning] = useState(false);
   const [editedMeaning, setEditedMeaning] = useState('');
   const [customMeanings, setCustomMeanings] = useState<Record<string, string>>({});
   // Shared "Extra reasoning" preference (default on) — governs deep + oracle.
   const [extraReasoning, toggleExtraReasoning] = useExtraReasoning();
+
+  // Fetch annotations (note + saved insights) whenever the displayed reading changes.
+  useEffect(() => {
+    if (!reading) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/readings/${reading.id}/annotations`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`annotations fetch ${res.status}`);
+        const data = await res.json() as { note: string | null; savedInsights: Array<{ card_id: string; text: string }> };
+
+        // Hydrate saved insights: card_id in the API maps directly to the cacheKey used in state.
+        const hydratedInsights: Record<string, string> = {};
+        for (const s of data.savedInsights) {
+          if (s.card_id) hydratedInsights[s.card_id] = s.text;
+        }
+        setSavedInsights(hydratedInsights);
+
+        // Hydrate custom meanings: stored as JSON in the single note field.
+        if (data.note) {
+          try {
+            const parsed = JSON.parse(data.note);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              setCustomMeanings(parsed as Record<string, string>);
+            }
+          } catch {
+            // Not JSON — ignore (plain text notes from older data; not used by this UI).
+          }
+        } else {
+          setCustomMeanings({});
+        }
+      } catch (err) {
+        console.error('[ReadingDetailPane] annotations fetch failed — degrading to empty state', err);
+        // Don't crash the pane; leave state as-is.
+      }
+    })();
+  }, [reading?.id]);
 
   // Reset edit state when card changes
   useEffect(() => {
@@ -30,9 +66,11 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
     }
   }, [selectedCard, reading, customMeanings]);
 
-  const toggleSaveInsight = (cacheKey: string, text: string) => {
+  const toggleSaveInsight = async (cacheKey: string, text: string) => {
     if (!reading) return;
-    if (savedInsights[cacheKey]) {
+    const isSaved = !!savedInsights[cacheKey];
+    // Optimistic update
+    if (isSaved) {
       setSavedInsights(prev => {
         const updated = { ...prev };
         delete updated[cacheKey];
@@ -40,6 +78,36 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
       });
     } else {
       setSavedInsights(prev => ({ ...prev, [cacheKey]: text }));
+    }
+    // Persist
+    try {
+      if (isSaved) {
+        await fetch(`/api/readings/${reading.id}/insights/saved`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardId: cacheKey }),
+        });
+      } else {
+        await fetch(`/api/readings/${reading.id}/insights/saved`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardId: cacheKey, text }),
+        });
+      }
+    } catch (err) {
+      console.error('[ReadingDetailPane] insight toggle persist failed', err);
+      // Revert optimistic update on failure
+      if (isSaved) {
+        setSavedInsights(prev => ({ ...prev, [cacheKey]: text }));
+      } else {
+        setSavedInsights(prev => {
+          const updated = { ...prev };
+          delete updated[cacheKey];
+          return updated;
+        });
+      }
     }
   };
 
@@ -129,10 +197,22 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                        </button>
                      ) : (
                        <button
-                         onClick={() => {
+                         onClick={async () => {
                            setIsEditingMeaning(false);
                            const posId = `${reading.id}_${selectedCard.position.id}`;
-                           setCustomMeanings(prev => ({ ...prev, [posId]: editedMeaning }));
+                           const updated = { ...customMeanings, [posId]: editedMeaning };
+                           setCustomMeanings(updated);
+                           // Persist custom meanings as JSON in the single per-reading note.
+                           try {
+                             await fetch(`/api/readings/${reading.id}/note`, {
+                               method: 'PUT',
+                               credentials: 'include',
+                               headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify({ text: JSON.stringify(updated) }),
+                             });
+                           } catch (err) {
+                             console.error('[ReadingDetailPane] note persist failed', err);
+                           }
                          }}
                          className="text-[#DEB564] hover:text-[#DEB564]/80 transition-colors p-1 flex items-center gap-1"
                          title="Save meaning"
