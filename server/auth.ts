@@ -79,7 +79,7 @@ export function registerAuthRoutes(app: Express) {
     console.log("[auth/callback] exchanged ok; access_token.len=%d id_token.len=%d has_refresh=%s",
       tokens.access_token?.length ?? -1, (tokens as any).id_token?.length ?? -1, !!tokens.refresh_token);
     const payload = await validateToken(tokens.access_token);
-    console.log("[auth/callback] validate:", payload ? `ok sub=${payload.sub} email=${payload.email}` : "NULL");
+    console.log("[auth/callback] validate:", payload ? `ok sub=${payload.sub}` : "NULL"); // sub only — no PII in logs
     if (!payload) return res.redirect(302, "/?error=invalid_token");
     try { await upsertUser(payload); console.log("[auth/callback] profile upserted sub=%s", payload.sub); }
     catch (e) { console.error("[auth/callback] profile upsert failed:", e); }
