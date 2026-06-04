@@ -8,6 +8,21 @@ import { upsertUser } from "./authProfile.ts";
 
 const secure = () => process.env.SESSION_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production";
 
+// Single-flight refresh: the SPA fires several /api/* calls at once, so when the
+// access token expires they all try to refresh simultaneously. Authentik rotates
+// refresh tokens on use, so concurrent refreshes with the same token race and all
+// but one fail (invalid_grant) → spurious 401s. Serialize them, keyed by the
+// refresh-token value, so concurrent callers share one refresh result.
+const _refreshInFlight = new Map<string, Promise<TokenSet>>();
+function refreshOnce(refreshToken: string): Promise<TokenSet> {
+  let p = _refreshInFlight.get(refreshToken);
+  if (!p) {
+    p = refreshTokens(refreshToken).finally(() => _refreshInFlight.delete(refreshToken));
+    _refreshInFlight.set(refreshToken, p);
+  }
+  return p;
+}
+
 export function sessionCookieOptions() {
   return { httpOnly: true, secure: secure(), sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 1000 };
 }
@@ -34,12 +49,14 @@ async function resolvePayload(req: Request, res: Response): Promise<TokenPayload
   const token = req.cookies?.[SESSION_COOKIE];
   const refresh = req.cookies?.[REFRESH_COOKIE];
   let payload: TokenPayload | null = token ? await validateToken(token) : null;
+  if (!payload && !refresh) console.warn("[auth] no valid session token and no refresh cookie present");
   if ((!payload || (payload && isExpired(payload))) && refresh) {
     try {
-      const fresh = await refreshTokens(refresh);
+      const fresh = await refreshOnce(refresh);
       payload = await validateToken(fresh.access_token);
-      if (payload) setSession(res, fresh);
-    } catch { payload = null; }
+      if (payload) { setSession(res, fresh); console.log("[auth] token refreshed ok"); }
+      else console.error("[auth] refresh succeeded but new access token failed validation");
+    } catch (e) { console.error("[auth] refresh FAILED:", (e as Error)?.message); payload = null; }
   }
   return payload;
 }
