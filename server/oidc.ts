@@ -96,7 +96,8 @@ export async function validateToken(token: string): Promise<TokenPayload | null>
       audience: env("AUTHENTIK_CLIENT_ID"),
     });
     return payload as unknown as TokenPayload;
-  } catch {
+  } catch (e) {
+    console.error("[validateToken] FAIL:", (e as Error)?.message);
     return null;
   }
 }
