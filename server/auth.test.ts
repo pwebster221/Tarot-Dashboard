@@ -24,8 +24,19 @@ test("requireAuth returns 401 when no cookies present", async () => {
 test("safeReturnTo allows relative paths, rejects absolute/protocol-relative/non-string", () => {
   assert.equal(safeReturnTo("/practice"), "/practice");
   assert.equal(safeReturnTo("/"), "/");
+  assert.equal(safeReturnTo("/card-detail?id=3#top"), "/card-detail?id=3#top"); // query/hash + dash kept
   assert.equal(safeReturnTo("https://evil.com"), "/");
   assert.equal(safeReturnTo("//evil.com"), "/");
   assert.equal(safeReturnTo(undefined), "/");
   assert.equal(safeReturnTo(["/a", "/b"]), "/");
+});
+
+test("safeReturnTo blocks the backslash + CRLF open-redirect bypasses", () => {
+  // browsers normalize `\` → `/`, so `/\evil.com` would become protocol-relative
+  assert.equal(safeReturnTo("/\\evil.com"), "/");
+  assert.equal(safeReturnTo("/\\/evil.com"), "/");
+  assert.equal(safeReturnTo("/\t/\\evil.com"), "/"); // tab smuggling
+  // CR/LF must never survive into a Location header
+  assert.ok(!safeReturnTo("/foo\r\nLocation: https://evil.com").includes("\n"));
+  assert.ok(!safeReturnTo("/foo\r\nSet-Cookie: x=1").includes("\r"));
 });

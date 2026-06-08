@@ -34,10 +34,22 @@ function shortCookieOptions() {
   return { httpOnly: true, secure: secure(), sameSite: "lax" as const, path: "/", maxAge: 60 * 10 * 1000 };
 }
 
-/** Only allow same-origin relative paths as post-login redirect targets
- *  (blocks open-redirect: rejects absolute URLs and protocol-relative `//host`). */
+/** Only allow same-origin relative paths as post-login redirect targets (blocks
+ *  open-redirect). Resolves the candidate against a throwaway origin and accepts it
+ *  only if the resolved origin is unchanged — which rejects absolute URLs,
+ *  protocol-relative `//host`, the backslash bypass `/\host` (the WHATWG parser
+ *  normalizes `\`→`/`, making it protocol-relative), and CR/LF/tab (stripped by the
+ *  parser). On a match it re-emits the normalized path+query+hash only. */
+const RETURN_TO_BASE = "http://placeholder.invalid";
 export function safeReturnTo(raw: unknown): string {
-  return typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  if (typeof raw !== "string" || !raw.startsWith("/")) return "/";
+  try {
+    const u = new URL(raw, RETURN_TO_BASE);
+    if (u.origin !== RETURN_TO_BASE) return "/";
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return "/";
+  }
 }
 
 function setSession(res: Response, tokens: TokenSet) {
