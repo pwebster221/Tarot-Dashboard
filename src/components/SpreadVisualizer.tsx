@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { DrawnCard } from '../types';
-import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useAuth } from '../lib/AuthContext';
 
 interface SpreadVisualizerProps {
   readingId: string;
@@ -13,46 +10,16 @@ interface SpreadVisualizerProps {
   spreadType: string;
 }
 
-export function SpreadVisualizer({ readingId, drawnCards, selectedCardId, onCardClick, spreadType }: SpreadVisualizerProps) {
-  const { currentUser } = useAuth();
+export function SpreadVisualizer({ readingId: _readingId, drawnCards, selectedCardId, onCardClick, spreadType }: SpreadVisualizerProps) {
   const [positions, setPositions] = useState<Record<string, { x: number, y: number }>>({});
 
-  useEffect(() => {
-    if (!currentUser || !readingId) return;
-    const fetchPositions = async () => {
-      try {
-        const docRef = doc(db, 'users', currentUser.uid, 'layouts', readingId);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          setPositions(snap.data().positions || {});
-        }
-      } catch (err) {
-        console.error("Failed to load layout positions", err);
-      }
-    };
-    fetchPositions();
-  }, [currentUser, readingId]);
-
-  const handleDragEnd = async (cardId: string, offset: { x: number, y: number }) => {
-    if (!currentUser) return;
+  const handleDragEnd = (cardId: string, offset: { x: number, y: number }) => {
     const currentX = positions[cardId]?.x || 0;
     const currentY = positions[cardId]?.y || 0;
-    
-    const newPositions = {
-      ...positions,
-      [cardId]: {
-        x: currentX + offset.x,
-        y: currentY + offset.y
-      }
-    };
-    setPositions(newPositions);
-    
-    try {
-      const docRef = doc(db, 'users', currentUser.uid, 'layouts', readingId);
-      await setDoc(docRef, { positions: newPositions }, { merge: true });
-    } catch (err) {
-      console.error("Failed to save layout positions", err);
-    }
+    setPositions(prev => ({
+      ...prev,
+      [cardId]: { x: currentX + offset.x, y: currentY + offset.y }
+    }));
   };
 
   const layoutProps = { cards: drawnCards, selectedCardId, onCardClick, positions, onDragEnd: handleDragEnd };

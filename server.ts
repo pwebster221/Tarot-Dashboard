@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -10,6 +11,8 @@ import { getAstroContext, getCardContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
+import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
+import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -143,13 +146,23 @@ async function startServer() {
     _cardInsightCache.set(key, val);
   };
 
-  // JSON middleware
+  // Cookie + JSON parsing
+  app.use(cookieParser());
   app.use(express.json());
+
+  // Public auth routes + health (registered BEFORE the /api guard so they bypass it).
+  registerAuthRoutes(app);
+  app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+  // Everything else under /api requires a valid Authentik session.
+  app.use("/api", requireAuth);
 
   // API routes
   app.get("/api/readings", async (req, res) => {
     try {
-      const apiUrl = `https://readings.dubtown-server.us/readings?${new URLSearchParams(req.query as any).toString()}`;
+      const params = new URLSearchParams(req.query as any);
+      params.set("user_sub", (req as any).user.sub);
+      const apiUrl = `https://readings.dubtown-server.us/readings?${params.toString()}`;
       console.log(`[Proxy] Fetching: ${apiUrl}`);
       
       const apiKey = process.env.DUBTOWN_API_KEY;
@@ -182,7 +195,7 @@ async function startServer() {
 
   app.get("/api/readings/:id", async (req, res) => {
     try {
-      const apiUrl = `https://readings.dubtown-server.us/readings/${req.params.id}`;
+      const apiUrl = `https://readings.dubtown-server.us/readings/${req.params.id}?user_sub=${encodeURIComponent((req as any).user.sub)}`;
       console.log(`[Proxy] Fetching detail: ${apiUrl}`);
 
       const apiKey = process.env.DUBTOWN_API_KEY;
@@ -208,11 +221,6 @@ async function startServer() {
       console.error("[Proxy] Critical error fetching reading detail:", error);
       res.status(500).json({ error: "Internal server error during proxy request" });
     }
-  });
-
-  // Health check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
   });
 
   app.post("/api/upload-cards", upload.array('cards', 100), (req, res) => {
@@ -340,6 +348,104 @@ async function startServer() {
           context: `Graph context for ${req.body.cardName || 'the card'} is currently unavailable. Proceed analyzing based on standard esoteric traditions.`
         }
       });
+    }
+  });
+
+  // ── User annotations (persisted to the Repository :7687 by Authentik sub) ──
+  app.get("/api/readings/:id/annotations", async (req, res) => {
+    try {
+      res.json(await getAnnotations((req as any).user.sub, req.params.id));
+    } catch (e: any) {
+      console.error("[annotations:get]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/readings/:id/note", async (req, res) => {
+    const text = typeof req.body?.text === "string" ? req.body.text : null;
+    if (text === null) return res.status(400).json({ error: "text (string) required" });
+    try {
+      await upsertNote((req as any).user.sub, req.params.id, text);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[note:put]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/readings/:id/note", async (req, res) => {
+    try {
+      await deleteNote((req as any).user.sub, req.params.id);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[note:delete]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/readings/:id/insights/saved", async (req, res) => {
+    const cardId = req.body?.cardId;
+    const text = req.body?.text;
+    if (typeof cardId !== "string" || typeof text !== "string") {
+      return res.status(400).json({ error: "cardId and text (strings) required" });
+    }
+    try {
+      await saveInsight((req as any).user.sub, req.params.id, cardId, text);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[insight:save]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/readings/:id/insights/saved", async (req, res) => {
+    const cardId = (req.body?.cardId ?? req.query.cardId) as string | undefined;
+    if (!cardId) return res.status(400).json({ error: "cardId required" });
+    try {
+      await unsaveInsight((req as any).user.sub, req.params.id, cardId);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[insight:unsave]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/onboarding/complete", async (req, res) => {
+    const b = req.body ?? {};
+    const lens = b.lens === "mystical" ? "mystical" : "archetypal";
+    try {
+      await completeOnboarding((req as any).user.sub, {
+        lens,
+        displayName: b.displayName,
+        birthDate: b.birthDate,
+        birthTime: b.birthTime,
+        birthPlace: b.birthPlace,
+      });
+      res.json({ ok: true, onboarded: true, lens });
+    } catch (e: any) {
+      console.error("[onboarding:complete]", e);
+      res.status(500).json({ error: "onboarding_persist_failed" });
+    }
+  });
+
+  app.get("/api/trend-insight", async (req, res) => {
+    try {
+      res.json(await getTrendInsight((req as any).user.sub));
+    } catch (e: any) {
+      console.error("[trend:get]", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/trend-insight", async (req, res) => {
+    const text = typeof req.body?.text === "string" ? req.body.text : null;
+    if (text === null) return res.status(400).json({ error: "text (string) required" });
+    try {
+      await setTrendInsight((req as any).user.sub, text);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("[trend:put]", e);
+      res.status(500).json({ error: e.message });
     }
   });
 

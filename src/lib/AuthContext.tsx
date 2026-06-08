@@ -1,59 +1,41 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from './firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
-interface UserProfile {
-  name: string;
+interface AuthUser {
+  sub: string;
   email: string;
+  name: string;
+  onboarded?: boolean;
+  lens?: "archetypal" | "mystical";
+  displayName?: string | null;
 }
-
 interface AuthContextType {
-  currentUser: User | null;
-  userProfile: UserProfile | null;
+  currentUser: AuthUser | null;
   loading: boolean;
+  refresh: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  currentUser: null,
-  userProfile: null,
-  loading: true,
-});
-
+const AuthContext = createContext<AuthContextType>({ currentUser: null, loading: true, refresh: async () => {} });
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserProfile(docSnap.data() as UserProfile);
-          } else {
-            setUserProfile(null);
-          }
-        } catch (error) {
-          console.error("Failed to load user profile:", error);
-          setUserProfile(null);
-        }
-      } else {
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+  const refresh = useCallback(async () => {
+    try {
+      const r = await fetch("/api/auth/me", { credentials: "include" });
+      setCurrentUser(r.ok ? await r.json() : null);
+    } catch {
+      setCurrentUser(null);
+    }
   }, []);
 
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+  }, [refresh]);
+
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading }}>
+    <AuthContext.Provider value={{ currentUser, loading, refresh }}>
       {!loading && children}
     </AuthContext.Provider>
   );

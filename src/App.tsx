@@ -9,12 +9,11 @@ import { SpreadVisualizer } from './components/SpreadVisualizer';
 import { ReadingDetailPane } from './components/ReadingDetailPane';
 import { DashboardSpreadsheet } from './components/DashboardSpreadsheet';
 import { LandingPage } from './components/LandingPage';
+import { Onboarding } from './onboarding/Onboarding';
 import { CardUploader } from './components/CardUploader';
 import { DrawnCard, Reading } from './types';
 import { fetchReadings, fetchReadingDetail } from './lib/api';
 import { useAuth } from './lib/AuthContext';
-import { auth } from './lib/firebase';
-import { signOut } from 'firebase/auth';
 
 export default function App() {
   const [readings, setReadings] = useState<Reading[]>([]);
@@ -22,9 +21,7 @@ export default function App() {
   const [selectedReading, setSelectedReading] = useState<Reading | null>(null);
   const [fetchingDetail, setFetchingDetail] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [isNewReadingModalOpen, setIsNewReadingModalOpen] = useState(false);
-  
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
 
 
   
@@ -86,12 +83,6 @@ export default function App() {
   const filteredReadings = useMemo(() => {
     console.log('[App] Filtering readings. Total count:', readings.length);
     const filtered = readings.filter(reading => {
-      if (userProfile?.name) {
-        if ((reading.querent || '').toLowerCase() !== userProfile.name.toLowerCase()) {
-          return false;
-        }
-      }
-
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const querent = (reading.querent || '').toLowerCase();
@@ -130,7 +121,7 @@ export default function App() {
     });
     console.log('[App] Filtered readings count:', filtered.length);
     return filtered;
-  }, [readings, searchQuery, timeframe, selectedArchetypes, sortOrder, userProfile?.name]);
+  }, [readings, searchQuery, timeframe, selectedArchetypes, sortOrder]);
 
   if (authLoading) {
     return (
@@ -145,6 +136,11 @@ export default function App() {
 
   if (!currentUser) {
     return <LandingPage />;
+  }
+
+  // First-run new-user flow: post-login onboarding (account step handled by Authentik).
+  if (!currentUser.onboarded) {
+    return <Onboarding />;
   }
 
   return (
@@ -183,10 +179,10 @@ export default function App() {
                   <div className="w-8 h-8 rounded-full bg-[#2a0d4e]/80 flex items-center justify-center border border-[#DEB564]/30">
                     <UserIcon className="w-4 h-4 text-[#DEB564]/80" />
                   </div>
-                  <span className="text-sm font-medium text-[#FFFAE3]/90">{userProfile?.name || currentUser.email}</span>
+                  <span className="text-sm font-medium text-[#FFFAE3]/90">{currentUser.name || currentUser.email}</span>
                 </div>
-                <button 
-                  onClick={() => signOut(auth)}
+                <button
+                  onClick={() => { window.location.href = "/api/auth/logout"; }}
                   className="p-2 rounded-md hover:bg-white/5 border border-white/5 transition-colors text-[#FFFAE3]/60 hover:text-red-400"
                   title="Sign Out"
                 >
@@ -410,28 +406,6 @@ export default function App() {
         </div>
       </footer>
       
-      {/* New Reading Modal using Typeform */}
-      {isNewReadingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8">
-           <div className="w-full max-w-4xl h-full max-h-[800px] bg-[#050508] border border-[#DEB564]/30 rounded-2xl relative flex flex-col overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.1)]">
-              <div className="h-14 border-b border-white/10 flex items-center justify-between px-6 shrink-0 bg-black/40">
-                 <h2 className="text-amber-200 font-serif text-xl tracking-wide">Initiate New Reading</h2>
-                 <button onClick={() => setIsNewReadingModalOpen(false)} className="text-[#FFFAE3]/40 hover:text-[#FFFAE3] transition-colors p-1">
-                   <span className="sr-only">Close</span>
-                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                 </button>
-              </div>
-              <div className="flex-1 w-full bg-[#050508] relative">
-                 <iframe 
-                   src="https://3rvj74fa51b.typeform.com/to/GdDUXytv" 
-                   className="absolute inset-0 w-full h-full border-0" 
-                   allow="camera; microphone; autoplay; encrypted-media;"
-                   title="New Tarot Reading Form"
-                 ></iframe>
-              </div>
-           </div>
-        </div>
-      )}
     </div>
   );
 }
