@@ -9,6 +9,7 @@ import { SpreadVisualizer } from './components/SpreadVisualizer';
 import { ReadingDetailPane } from './components/ReadingDetailPane';
 import { DashboardSpreadsheet } from './components/DashboardSpreadsheet';
 import { LandingPage } from './components/LandingPage';
+import { Onboarding } from './onboarding/Onboarding';
 import { CardUploader } from './components/CardUploader';
 import { DrawnCard, Reading } from './types';
 import { fetchReadings, fetchReadingDetail } from './lib/api';
@@ -135,6 +136,11 @@ export default function App() {
 
   if (!currentUser) {
     return <LandingPage />;
+  }
+
+  // First-run new-user flow: post-login onboarding (account step handled by Authentik).
+  if (!currentUser.onboarded) {
+    return <Onboarding />;
   }
 
   return (

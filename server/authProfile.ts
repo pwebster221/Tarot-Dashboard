@@ -4,7 +4,8 @@ import type { TokenPayload } from "./oidc.ts";
 export const UPSERT_USER_CYPHER = `
   MERGE (u:User {sub: $sub})
     ON CREATE SET u.email = $email, u.display_name = $name,
-                  u.role = 'practitioner', u.created_at = datetime()
+                  u.role = 'practitioner', u.created_at = datetime(),
+                  u.onboarded = false, u.lens = 'archetypal'
     ON MATCH  SET u.email = $email, u.last_seen_at = datetime()
   RETURN u.sub AS sub, u.email AS email, u.role AS role`;
 

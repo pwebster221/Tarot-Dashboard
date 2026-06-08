@@ -12,7 +12,7 @@ import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/p
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
-import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight } from "./server/userData.ts";
+import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -407,6 +407,24 @@ async function startServer() {
     } catch (e: any) {
       console.error("[insight:unsave]", e);
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/onboarding/complete", async (req, res) => {
+    const b = req.body ?? {};
+    const lens = b.lens === "mystical" ? "mystical" : "archetypal";
+    try {
+      await completeOnboarding((req as any).user.sub, {
+        lens,
+        displayName: b.displayName,
+        birthDate: b.birthDate,
+        birthTime: b.birthTime,
+        birthPlace: b.birthPlace,
+      });
+      res.json({ ok: true, onboarded: true, lens });
+    } catch (e: any) {
+      console.error("[onboarding:complete]", e);
+      res.status(500).json({ error: "onboarding_persist_failed" });
     }
   });
 

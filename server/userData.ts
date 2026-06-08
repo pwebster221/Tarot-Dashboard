@@ -45,6 +45,25 @@ export const SET_TREND_CYPHER = `
   SET u.trend_insight = $text, u.trend_insight_at = datetime()
 `;
 
+export const GET_USER_STATE_CYPHER = `
+  MATCH (u:User {sub: $sub})
+  RETURN coalesce(u.onboarded, false) AS onboarded,
+         coalesce(u.lens, 'archetypal') AS lens,
+         u.display_name AS displayName
+`;
+
+export const COMPLETE_ONBOARDING_CYPHER = `
+  MERGE (u:User {sub: $sub})
+  SET u.onboarded = true,
+      u.onboarded_at = datetime(),
+      u.lens = $lens,
+      u.display_name = coalesce($displayName, u.display_name),
+      u.birth_date = coalesce($birthDate, u.birth_date),
+      u.birth_time = coalesce($birthTime, u.birth_time),
+      u.birth_place = coalesce($birthPlace, u.birth_place)
+  RETURN coalesce(u.onboarded, false) AS onboarded, u.lens AS lens
+`;
+
 // ── Lazy driver — NOT opened at import time ──────────────────────────────────
 
 let _driver: Driver | null = null;
@@ -169,6 +188,61 @@ export async function setTrendInsight(
   const session = getDriver().session();
   try {
     await session.run(SET_TREND_CYPHER, { sub, text });
+  } finally {
+    await session.close();
+  }
+}
+
+// ── Onboarding state ─────────────────────────────────────────────────────────
+
+export interface UserState {
+  onboarded: boolean;
+  lens: "archetypal" | "mystical";
+  displayName: string | null;
+}
+
+/** Read a user's onboarding state. Missing node → sensible defaults (not onboarded). */
+export async function getUserState(sub: string): Promise<UserState> {
+  const session = getDriver().session();
+  try {
+    const result = await session.run(GET_USER_STATE_CYPHER, { sub });
+    if (result.records.length === 0) {
+      return { onboarded: false, lens: "archetypal", displayName: null };
+    }
+    const r = result.records[0];
+    const lens = r.get("lens") === "mystical" ? "mystical" : "archetypal";
+    return {
+      onboarded: Boolean(r.get("onboarded")),
+      lens,
+      displayName: (r.get("displayName") as string | null) ?? null,
+    };
+  } finally {
+    await session.close();
+  }
+}
+
+export interface OnboardingInput {
+  lens: "archetypal" | "mystical";
+  displayName?: string | null;
+  birthDate?: string | null;
+  birthTime?: string | null;
+  birthPlace?: string | null;
+}
+
+/** Mark a user onboarded and persist their chosen lens + collected profile.
+ *  Empty strings are normalized to null so `coalesce` keeps any prior value. */
+export async function completeOnboarding(sub: string, input: OnboardingInput): Promise<void> {
+  const blankToNull = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
+  const session = getDriver().session();
+  try {
+    await session.run(COMPLETE_ONBOARDING_CYPHER, {
+      sub,
+      lens: input.lens === "mystical" ? "mystical" : "archetypal",
+      displayName: blankToNull(input.displayName),
+      birthDate: blankToNull(input.birthDate),
+      birthTime: blankToNull(input.birthTime),
+      birthPlace: blankToNull(input.birthPlace),
+    });
   } finally {
     await session.close();
   }

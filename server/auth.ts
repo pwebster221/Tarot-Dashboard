@@ -5,6 +5,7 @@ import {
   type TokenPayload, type TokenSet,
 } from "./oidc.ts";
 import { upsertUser } from "./authProfile.ts";
+import { getUserState, type UserState } from "./userData.ts";
 
 const secure = () => process.env.SESSION_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production";
 
@@ -111,7 +112,14 @@ export function registerAuthRoutes(app: Express) {
     res.redirect(302, logoutUrl());
   });
 
-  app.get("/api/auth/me", requireAuth, (req, res) => {
-    res.json((req as any).user);
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    let state: UserState = { onboarded: false, lens: "archetypal", displayName: null };
+    try {
+      state = await getUserState(user.sub);
+    } catch (e) {
+      console.error("[auth/me] getUserState failed:", (e as Error)?.message);
+    }
+    res.json({ ...user, onboarded: state.onboarded, lens: state.lens, displayName: state.displayName });
   });
 }
