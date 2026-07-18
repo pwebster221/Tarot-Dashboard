@@ -8,11 +8,13 @@ import {
   GET_CARD_MEANING_CYPHER,
 } from "./userData.ts";
 
-test("card meaning matches TarotCard by name and returns guidance + keywords", () => {
+test("card meaning walks TarotCard → Archetype composition, with correspondence fallback", () => {
   assert.match(GET_CARD_MEANING_CYPHER, /:TarotCard/);
   assert.match(GET_CARD_MEANING_CYPHER, /toLower\(c\.name\)\s*=\s*toLower\(\$name\)/);
-  assert.match(GET_CARD_MEANING_CYPHER, /c\.guidance_narrative AS meaning/);
-  assert.match(GET_CARD_MEANING_CYPHER, /c\.keywords AS keywords/);
+  assert.match(GET_CARD_MEANING_CYPHER, /\(a:Archetype\)-\[:BASED_ON\]->\(c\)/);
+  assert.match(GET_CARD_MEANING_CYPHER, /a\.composition_essential_nature AS essential/);
+  assert.match(GET_CARD_MEANING_CYPHER, /a\.composition_decan_synthesis AS decanSynthesis/);
+  assert.match(GET_CARD_MEANING_CYPHER, /c\.guidance_narrative AS guidance/);
 });
 
 test("note upsert keys on sub + reading id and sets text", () => {

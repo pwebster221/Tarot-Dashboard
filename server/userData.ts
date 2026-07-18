@@ -46,10 +46,17 @@ export const SET_TREND_CYPHER = `
 `;
 
 // Canonical card meaning from the Esoteric Repository (same Neo4j instance).
+// The decan-derived meaning lives on the :Archetype node (composition_* fields,
+// 100% coverage), reached via (:Archetype)-[:BASED_ON]->(:TarotCard). We lead
+// with essential_nature + decan_synthesis; the :TarotCard correspondence fields
+// (guidance_narrative/keywords/one_word) are a fallback when no Archetype is found.
 export const GET_CARD_MEANING_CYPHER = `
   MATCH (c:TarotCard)
   WHERE toLower(c.name) = toLower($name)
-  RETURN c.guidance_narrative AS meaning, c.keywords AS keywords
+  OPTIONAL MATCH (a:Archetype)-[:BASED_ON]->(c)
+  RETURN a.composition_essential_nature AS essential,
+         a.composition_decan_synthesis AS decanSynthesis,
+         c.guidance_narrative AS guidance, c.keywords AS keywords, c.one_word AS oneWord
   LIMIT 1
 `;
 
@@ -201,8 +208,18 @@ export async function setTrendInsight(
   }
 }
 
-/** Canonical card meaning from the Esoteric Repository (:TarotCard). Returns
- *  null when the card isn't found, so callers can fall back to local metadata. */
+/** keywords is stored as a string ("a, b, c") on some cards and a list on
+ *  others — normalize to a string array. */
+function normalizeKeywords(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((k): k is string => typeof k === "string" && k.trim() !== "");
+  if (typeof raw === "string") return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+
+/** Canonical card meaning from the Esoteric Repository (:TarotCard). Composes a
+ *  display meaning from the richest available field (guidance_narrative → keywords
+ *  → one_word). Returns null when the card isn't found so callers can fall back
+ *  to local metadata. */
 export async function getCardMeaning(
   name: string,
 ): Promise<{ meaning: string | null; keywords: string[] } | null> {
@@ -212,11 +229,16 @@ export async function getCardMeaning(
     const result = await session.run(GET_CARD_MEANING_CYPHER, { name });
     if (result.records.length === 0) return null;
     const r = result.records[0];
-    const meaning = (r.get("meaning") as string | null) ?? null;
-    const rawKeywords = r.get("keywords");
-    const keywords = Array.isArray(rawKeywords)
-      ? rawKeywords.filter((k): k is string => typeof k === "string")
-      : [];
+    const keywords = normalizeKeywords(r.get("keywords"));
+    // Preferred: the decan-derived Archetype composition (essential nature + how
+    // the specific decans synthesize).
+    const essential = ((r.get("essential") as string | null) ?? "").trim();
+    const decanSynthesis = ((r.get("decanSynthesis") as string | null) ?? "").trim();
+    const composed = [essential, decanSynthesis].filter(Boolean).join("\n\n");
+    // Fallback: :TarotCard correspondence fields.
+    const guidance = ((r.get("guidance") as string | null) ?? "").trim();
+    const oneWord = ((r.get("oneWord") as string | null) ?? "").trim();
+    const meaning = composed || guidance || (keywords.length ? keywords.join(", ") : (oneWord || null));
     return { meaning, keywords };
   } finally {
     await session.close();
