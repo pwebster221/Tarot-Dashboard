@@ -45,6 +45,14 @@ export const SET_TREND_CYPHER = `
   SET u.trend_insight = $text, u.trend_insight_at = datetime()
 `;
 
+// Canonical card meaning from the Esoteric Repository (same Neo4j instance).
+export const GET_CARD_MEANING_CYPHER = `
+  MATCH (c:TarotCard)
+  WHERE toLower(c.name) = toLower($name)
+  RETURN c.guidance_narrative AS meaning, c.keywords AS keywords
+  LIMIT 1
+`;
+
 export const GET_USER_STATE_CYPHER = `
   MATCH (u:User {sub: $sub})
   RETURN coalesce(u.onboarded, false) AS onboarded,
@@ -188,6 +196,28 @@ export async function setTrendInsight(
   const session = getDriver().session();
   try {
     await session.run(SET_TREND_CYPHER, { sub, text });
+  } finally {
+    await session.close();
+  }
+}
+
+/** Canonical card meaning from the Esoteric Repository (:TarotCard). Returns
+ *  null when the card isn't found, so callers can fall back to local metadata. */
+export async function getCardMeaning(
+  name: string,
+): Promise<{ meaning: string | null; keywords: string[] } | null> {
+  if (!name) return null;
+  const session = getDriver().session();
+  try {
+    const result = await session.run(GET_CARD_MEANING_CYPHER, { name });
+    if (result.records.length === 0) return null;
+    const r = result.records[0];
+    const meaning = (r.get("meaning") as string | null) ?? null;
+    const rawKeywords = r.get("keywords");
+    const keywords = Array.isArray(rawKeywords)
+      ? rawKeywords.filter((k): k is string => typeof k === "string")
+      : [];
+    return { meaning, keywords };
   } finally {
     await session.close();
   }

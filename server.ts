@@ -13,7 +13,7 @@ import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
 import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
-import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding } from "./server/userData.ts";
+import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding, getCardMeaning } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -323,6 +323,20 @@ async function startServer() {
       res.json({ result: text });
     } catch (err: any) {
       console.error("[AI Server Error] Trend Insight:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Canonical card meaning from the Esoteric Repository (:TarotCard.guidance_narrative).
+  // Powers the Card Detail "General Meaning" field. Returns { meaning, keywords }.
+  app.get("/api/graph/card-meaning", async (req, res) => {
+    try {
+      const name = clampStr(req.query.name, 120);
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const found = await getCardMeaning(name);
+      res.json({ meaning: found?.meaning ?? null, keywords: found?.keywords ?? [] });
+    } catch (err: any) {
+      console.error("[Graph] card-meaning error:", err);
       res.status(500).json({ error: err.message });
     }
   });

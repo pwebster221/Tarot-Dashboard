@@ -5,7 +5,15 @@ import {
   SAVE_INSIGHT_CYPHER, UNSAVE_INSIGHT_CYPHER,
   GET_ANNOTATIONS_CYPHER, GET_TREND_CYPHER, SET_TREND_CYPHER,
   GET_USER_STATE_CYPHER, COMPLETE_ONBOARDING_CYPHER,
+  GET_CARD_MEANING_CYPHER,
 } from "./userData.ts";
+
+test("card meaning matches TarotCard by name and returns guidance + keywords", () => {
+  assert.match(GET_CARD_MEANING_CYPHER, /:TarotCard/);
+  assert.match(GET_CARD_MEANING_CYPHER, /toLower\(c\.name\)\s*=\s*toLower\(\$name\)/);
+  assert.match(GET_CARD_MEANING_CYPHER, /c\.guidance_narrative AS meaning/);
+  assert.match(GET_CARD_MEANING_CYPHER, /c\.keywords AS keywords/);
+});
 
 test("note upsert keys on sub + reading id and sets text", () => {
   assert.match(NOTE_UPSERT_CYPHER, /:User \{sub: \$sub\}/);

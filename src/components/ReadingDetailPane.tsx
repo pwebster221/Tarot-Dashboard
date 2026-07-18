@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, Sun, ArrowLeft, Sparkles, Loader2, Edit2, Save, Bookmark } from 'lucide-react';
 import { DrawnCard, Reading } from '../types';
 import Markdown from 'react-markdown';
-import { generateDeepInterpretation, generateOracleInsight } from '../lib/ai';
+import { generateDeepInterpretation, generateOracleInsight, fetchCardMeaning } from '../lib/ai';
 import { useExtraReasoning } from '../lib/useExtraReasoning';
 import { ExtraReasoningToggle } from './ExtraReasoningToggle';
 
@@ -19,12 +19,18 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
   const [isEditingMeaning, setIsEditingMeaning] = useState(false);
   const [editedMeaning, setEditedMeaning] = useState('');
   const [customMeanings, setCustomMeanings] = useState<Record<string, string>>({});
+  // Gates meaning edits until persisted annotations have loaded, so a save can't
+  // overwrite the note with a stale-empty customMeanings map (data-loss guard).
+  const [annotationsLoaded, setAnnotationsLoaded] = useState(false);
+  // Canonical card meanings fetched from the graph, keyed by card name.
+  const [cardMeanings, setCardMeanings] = useState<Record<string, string>>({});
   // Shared "Extra reasoning" preference (default on) — governs deep + oracle.
   const [extraReasoning, toggleExtraReasoning] = useExtraReasoning();
 
   // Fetch annotations (note + saved insights) whenever the displayed reading changes.
   useEffect(() => {
     if (!reading) return;
+    setAnnotationsLoaded(false);
     (async () => {
       try {
         const res = await fetch(`/api/readings/${reading.id}/annotations`, { credentials: 'include' });
@@ -54,9 +60,21 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
       } catch (err) {
         console.error('[ReadingDetailPane] annotations fetch failed — degrading to empty state', err);
         // Don't crash the pane; leave state as-is.
+      } finally {
+        setAnnotationsLoaded(true);
       }
     })();
   }, [reading?.id]);
+
+  // Fetch the canonical General Meaning from the graph when a card is selected.
+  useEffect(() => {
+    const name = selectedCard?.card.name;
+    if (!name || cardMeanings[name] !== undefined) return;
+    (async () => {
+      const meaning = await fetchCardMeaning(name);
+      if (meaning) setCardMeanings(prev => ({ ...prev, [name]: meaning }));
+    })();
+  }, [selectedCard?.card.name, cardMeanings]);
 
   // Reset edit state when card changes
   useEffect(() => {
@@ -193,10 +211,11 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                    <div className="flex items-center justify-between mb-2">
                      <h4 className="text-[10px] uppercase text-[#FFFAE3]/40">Specific Meaning in Spread</h4>
                      {!isEditingMeaning ? (
-                       <button 
-                         onClick={() => setIsEditingMeaning(true)}
-                         className="text-[#FFFAE3]/40 hover:text-[#DEB564] transition-colors opacity-0 group-hover:opacity-100 p-1"
-                         title="Edit meaning"
+                       <button
+                         onClick={() => { if (annotationsLoaded) setIsEditingMeaning(true); }}
+                         disabled={!annotationsLoaded}
+                         className="text-[#FFFAE3]/40 hover:text-[#DEB564] transition-colors opacity-0 group-hover:opacity-100 p-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                         title={annotationsLoaded ? "Edit meaning" : "Loading saved meanings…"}
                        >
                          <Edit2 className="w-3 h-3" />
                        </button>
@@ -245,8 +264,8 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
 
               <div>
                 <h3 className="text-[10px] uppercase tracking-widest text-[#DEB564]/80 mb-2">General Meaning</h3>
-                <p className="text-sm text-[#FFFAE3]/80 leading-relaxed">
-                  {selectedCard.card.generalMeaning}
+                <p className="text-sm text-[#FFFAE3]/80 leading-relaxed whitespace-pre-wrap">
+                  {cardMeanings[selectedCard.card.name] ?? selectedCard.card.generalMeaning}
                 </p>
               </div>
 

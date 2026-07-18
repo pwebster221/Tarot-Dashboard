@@ -20,6 +20,24 @@ export async function fetchGraphContext(cardName: string): Promise<string> {
   }
 }
 
+/** Canonical card meaning from the Esoteric Repository. Returns null on miss/error
+ *  so callers can fall back to local metadata. */
+export async function fetchCardMeaning(cardName: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/graph/card-meaning?name=${encodeURIComponent(cardName)}`, {
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { meaning: string | null; keywords: string[] };
+    if (data.meaning && data.meaning.trim()) return data.meaning.trim();
+    if (data.keywords && data.keywords.length) return data.keywords.join(', ');
+    return null;
+  } catch (err) {
+    console.error('Failed to fetch card meaning', err);
+    return null;
+  }
+}
+
 export async function generateDeepInterpretation(card: DrawnCard, reading: Reading, extraReasoning: boolean = false): Promise<string> {
   try {
     const graphContext = await fetchGraphContext(card.card.name);
