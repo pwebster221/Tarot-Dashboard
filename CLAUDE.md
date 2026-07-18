@@ -32,6 +32,7 @@ Node >= 22 is required (declared in [package.json](package.json)).
 - `ENABLE_MCP` — optional; set to `"true"` to re-enable the dormant MCP client loop. Default off.
 - `ENABLE_REPOREASON` — optional; `"true"` activates per-card live reasoning (Fable 5 calls the reporeason MCP engine via Anthropic tool-use) on `deep-interpretation`. Default off. Expensive/slow — gated + per-card cached.
 - `REPOREASON_URL` — reporeason MCP endpoint (default `https://reporeason.dubtown-server.us/mcp`).
+- `REPOREASON_TOKEN` — static service token for reporeason (now fronted by an OIDCProxy). Sent as a `Bearer` header; without it the connection 401s and reasoning degrades to single-shot.
 - `ENABLE_MANI` — optional; `"true"` adds a Mani (`attune`) cognitive-stack enrichment call per interpretation, injected into the prompt. Profile is chosen by card tier (Majors→arendt, Court/Majestic→jung, Minors by suit). Best-effort: connect/attune failure degrades to no enrichment (logged), never blocks. Default off.
 - `MANI_URL` — Mani (keystone) MCP endpoint (default `https://mani.dubtown-server.us/mcp`).
 - `GEMINI_API_KEY` — legacy, exposed to the client via Vite `define`. Not used by current code; leave blank.

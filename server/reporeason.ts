@@ -16,7 +16,14 @@ export async function initReporeason(): Promise<void> {
   }
   const url = process.env.REPOREASON_URL || "https://reporeason.dubtown-server.us/mcp";
   try {
-    const transport = new StreamableHTTPClientTransport(new URL(url));
+    // reporeason is fronted by an OIDCProxy (interactive OAuth). As a headless
+    // service we authenticate with a static service token (REPOREASON_TOKEN),
+    // sent as a Bearer header; the server accepts it alongside interactive OAuth.
+    const token = process.env.REPOREASON_TOKEN;
+    const transport = new StreamableHTTPClientTransport(
+      new URL(url),
+      token ? { requestInit: { headers: { Authorization: `Bearer ${token}` } } } : undefined,
+    );
     const c = new Client({ name: "arcanum-dashboard", version: "1.0.0" }, { capabilities: {} });
     await c.connect(transport);
     _tools = (await c.listTools()).tools;
