@@ -56,6 +56,7 @@ export const GET_CARD_MEANING_CYPHER = `
   OPTIONAL MATCH (a:Archetype)-[:BASED_ON]->(c)
   RETURN a.composition_essential_nature AS essential,
          a.composition_decan_synthesis AS decanSynthesis,
+         a.composition_portrait AS portrait,
          c.guidance_narrative AS guidance, c.keywords AS keywords, c.one_word AS oneWord
   LIMIT 1
 `;
@@ -234,7 +235,10 @@ export async function getCardMeaning(
     // the specific decans synthesize).
     const essential = ((r.get("essential") as string | null) ?? "").trim();
     const decanSynthesis = ((r.get("decanSynthesis") as string | null) ?? "").trim();
-    const composed = [essential, decanSynthesis].filter(Boolean).join("\n\n");
+    // Majors/courts carry essential_nature + decan_synthesis; minors carry
+    // composition_portrait (the 1:1 decan passthrough). Prefer the former, else portrait.
+    const composed = [essential, decanSynthesis].filter(Boolean).join("\n\n")
+      || ((r.get("portrait") as string | null) ?? "").trim();
     // Fallback: :TarotCard correspondence fields.
     const guidance = ((r.get("guidance") as string | null) ?? "").trim();
     const oneWord = ((r.get("oneWord") as string | null) ?? "").trim();
