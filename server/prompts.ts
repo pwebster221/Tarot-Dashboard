@@ -41,7 +41,15 @@ function maniSection(mani: string): string {
     : "";
 }
 
-export function buildOraclePrompt(reading: any, astro: string, mani = ""): Prompt {
+/** Optional per-spread "Spread Detail" (the spread's authored description),
+ *  injected only when present. */
+function spreadSection(spreadDetail: string): string {
+  return spreadDetail && spreadDetail.trim()
+    ? `\n**Spread Detail (how to read this spread):**\n${spreadDetail}\n`
+    : "";
+}
+
+export function buildOraclePrompt(reading: any, astro: string, mani = "", spreadDetail = ""): Prompt {
   const cardsList = reading.drawnCards
     .map((c: any) => `- ${c.card.name} (${c.isReversed ? "Reversed" : "Upright"}) in position: ${c.position.name}`)
     .join("\n");
@@ -51,7 +59,7 @@ Provide a transcendent "Oracle Insight" synthesis of the entire reading.
 **Querent:** ${reading.querent}
 **Question:** ${reading.question}
 **Spread Type:** ${reading.type}
-
+${spreadSection(spreadDetail)}
 **Cards Drawn:**
 ${cardsList}
 
@@ -65,7 +73,7 @@ Provide a coherent narrative. 2-3 paragraphs.`;
   return { system: ORACLE_SYSTEM, user };
 }
 
-export function buildTrendPrompt(readings: any[], astro: string, mani = ""): Prompt {
+export function buildTrendPrompt(readings: any[], astro: string, mani = "", spreadDetails = ""): Prompt {
   const readingsText = readings
     .map((r: any) => `Date: ${r.date}, Question: ${r.question}, Cards: ${r.drawnCards.map((c: any) => c.card.name).join(", ")}`)
     .join("\n");
@@ -75,7 +83,7 @@ overarching themes or major trends.
 
 Readings:
 ${readingsText}
-
+${spreadSection(spreadDetails)}
 **Querent's Astrological Context:**
 ${astro}
 ${maniSection(mani)}`;

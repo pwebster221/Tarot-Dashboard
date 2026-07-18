@@ -13,7 +13,7 @@ import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
 import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
-import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding, getCardMeaning } from "./server/userData.ts";
+import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding, getCardMeaning, getSpreads, getSpreadDescription, updateSpread, createSpread } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -298,7 +298,8 @@ async function startServer() {
           + `Cards: ${(reading?.drawnCards || []).map((c: any) => c?.card?.name).filter(Boolean).join(", ")}.`;
         mani = await maniAttune(q, "jung", `arcanum-oracle-${reading?.id || "r"}`);
       }
-      const { system, user } = buildOraclePrompt(reading, astro, mani);
+      const spreadDef = reading?.type ? await getSpreadDescription(reading.type) : null;
+      const { system, user } = buildOraclePrompt(reading, astro, mani, spreadDef?.description || "");
       const { text } = await interpret(system, user, wantReasoning);
       res.json({ result: text });
     } catch (err: any) {
@@ -318,7 +319,14 @@ async function startServer() {
           + `identify overarching themes and major trends.`;
         mani = await maniAttune(q, "jung", "arcanum-trend");
       }
-      const { system, user } = buildTrendPrompt(readings, astro, mani);
+      // Fold each distinct spread's authored detail into the trend synthesis.
+      const spreadTypes = [...new Set((readings || []).map((r: any) => r?.type).filter(Boolean))];
+      const details: string[] = [];
+      for (const t of spreadTypes) {
+        const sd = await getSpreadDescription(t as string);
+        if (sd?.description) details.push(`${sd.name || t}: ${sd.description}`);
+      }
+      const { system, user } = buildTrendPrompt(readings, astro, mani, details.join("\n\n"));
       const { text } = await interpret(system, user, wantReasoning);
       res.json({ result: text });
     } catch (err: any) {
@@ -337,6 +345,60 @@ async function startServer() {
       res.json({ meaning: found?.meaning ?? null, keywords: found?.keywords ?? [] });
     } catch (err: any) {
       console.error("[Graph] card-meaning error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Manage Spreads — spread definitions (:Spread). description is the shared
+  //    "Spread Detail" folded into Oracle/Trend. Structure locks once readings exist. ──
+  app.get("/api/spreads", async (_req, res) => {
+    try {
+      res.json({ spreads: await getSpreads() });
+    } catch (err: any) {
+      console.error("[Spreads] list error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/spreads/:spreadType", async (req, res) => {
+    try {
+      const spreadType = clampStr(req.params.spreadType, 120);
+      const name = clampStr(req.body?.name, 200);
+      const description = clampStr(req.body?.description, 8000);
+      const existing = (await getSpreads()).find((s) => s.spreadType === spreadType);
+      if (!existing) return res.status(404).json({ error: "spread not found" });
+      // Structure (position count/names) is locked once readings exist.
+      let applyStructure = false;
+      let positionNames: string[] | undefined;
+      let positionCount: number | undefined;
+      if (!existing.locked && Array.isArray(req.body?.positionNames)) {
+        positionNames = (req.body.positionNames as unknown[]).map((n) => clampStr(n, 200)).slice(0, 32);
+        positionCount = positionNames.length;
+        applyStructure = true;
+      }
+      await updateSpread(spreadType, { name, description, positionCount, positionNames }, applyStructure);
+      res.json({ ok: true, locked: existing.locked });
+    } catch (err: any) {
+      console.error("[Spreads] update error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/spreads", async (req, res) => {
+    try {
+      const slug = clampStr(req.body?.spreadType, 120).trim().toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const name = clampStr(req.body?.name, 200);
+      if (!slug || !name) return res.status(400).json({ error: "spreadType and name are required" });
+      const positionNames = Array.isArray(req.body?.positionNames)
+        ? (req.body.positionNames as unknown[]).map((n) => clampStr(n, 200)).slice(0, 32)
+        : [];
+      const description = clampStr(req.body?.description, 8000);
+      const created = await createSpread(slug, { name, description, positionCount: positionNames.length, positionNames });
+      if (!created) return res.status(409).json({ error: "spread already exists" });
+      res.json({ ok: true, spreadType: slug });
+    } catch (err: any) {
+      console.error("[Spreads] create error:", err);
       res.status(500).json({ error: err.message });
     }
   });

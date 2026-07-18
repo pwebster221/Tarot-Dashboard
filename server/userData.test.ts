@@ -6,7 +6,23 @@ import {
   GET_ANNOTATIONS_CYPHER, GET_TREND_CYPHER, SET_TREND_CYPHER,
   GET_USER_STATE_CYPHER, COMPLETE_ONBOARDING_CYPHER,
   GET_CARD_MEANING_CYPHER,
+  GET_SPREADS_CYPHER, UPDATE_SPREAD_META_CYPHER, UPDATE_SPREAD_STRUCTURE_CYPHER, CREATE_SPREAD_CYPHER,
 } from "./userData.ts";
+
+test("spreads list counts readings per spread_type for the lock flag", () => {
+  assert.match(GET_SPREADS_CYPHER, /\(sp:Spread\)/);
+  assert.match(GET_SPREADS_CYPHER, /r\.spread_type\s*=\s*sp\.spread_type/);
+  assert.match(GET_SPREADS_CYPHER, /count\(r\) AS readingCount/);
+});
+
+test("spread update keys on spread_type; meta vs structure split", () => {
+  assert.match(UPDATE_SPREAD_META_CYPHER, /:Spread \{spread_type: \$spreadType\}/);
+  assert.match(UPDATE_SPREAD_META_CYPHER, /sp\.name\s*=\s*\$name/);
+  assert.match(UPDATE_SPREAD_META_CYPHER, /sp\.description\s*=\s*\$description/);
+  assert.doesNotMatch(UPDATE_SPREAD_META_CYPHER, /position_count/); // structure is a separate write
+  assert.match(UPDATE_SPREAD_STRUCTURE_CYPHER, /sp\.position_count\s*=\s*\$positionCount/);
+  assert.match(CREATE_SPREAD_CYPHER, /MERGE \(sp:Spread \{spread_type: \$spreadType\}\)/);
+});
 
 test("card meaning walks TarotCard → Archetype composition, with correspondence fallback", () => {
   assert.match(GET_CARD_MEANING_CYPHER, /:TarotCard/);

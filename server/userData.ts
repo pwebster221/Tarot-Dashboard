@@ -61,6 +61,43 @@ export const GET_CARD_MEANING_CYPHER = `
   LIMIT 1
 `;
 
+// ── Spreads (:Spread) — authored spread definitions; description is the
+//    "Spread Detail" folded into Oracle/Trend interpretations. Structure
+//    (position_count / position_names) is locked once readings exist. ──
+export const GET_SPREADS_CYPHER = `
+  MATCH (sp:Spread)
+  OPTIONAL MATCH (r:Reading) WHERE r.spread_type = sp.spread_type
+  WITH sp, count(r) AS readingCount
+  RETURN sp.spread_type AS spreadType, sp.name AS name, sp.short_name AS shortName,
+         sp.position_count AS positionCount, sp.position_names AS positionNames,
+         sp.description AS description, readingCount
+  ORDER BY sp.position_count, sp.name
+`;
+
+export const GET_SPREAD_DESCRIPTION_CYPHER = `
+  MATCH (sp:Spread {spread_type: $spreadType})
+  RETURN sp.name AS name, sp.description AS description LIMIT 1
+`;
+
+// name + description are always editable; structure only when unlocked.
+export const UPDATE_SPREAD_META_CYPHER = `
+  MATCH (sp:Spread {spread_type: $spreadType})
+  SET sp.name = $name, sp.description = $description, sp.updated_at = datetime()
+`;
+
+export const UPDATE_SPREAD_STRUCTURE_CYPHER = `
+  MATCH (sp:Spread {spread_type: $spreadType})
+  SET sp.position_count = $positionCount, sp.position_names = $positionNames
+`;
+
+export const CREATE_SPREAD_CYPHER = `
+  MERGE (sp:Spread {spread_type: $spreadType})
+  ON CREATE SET sp.name = $name, sp.short_name = $name,
+    sp.position_count = $positionCount, sp.position_names = $positionNames,
+    sp.description = $description, sp.created_at = datetime()
+  RETURN sp.created_at IS NOT NULL AS created
+`;
+
 export const GET_USER_STATE_CYPHER = `
   MATCH (u:User {sub: $sub})
   RETURN coalesce(u.onboarded, false) AS onboarded,
@@ -244,6 +281,124 @@ export async function getCardMeaning(
     const oneWord = ((r.get("oneWord") as string | null) ?? "").trim();
     const meaning = composed || guidance || (keywords.length ? keywords.join(", ") : (oneWord || null));
     return { meaning, keywords };
+  } finally {
+    await session.close();
+  }
+}
+
+// ── Spreads ──────────────────────────────────────────────────────────────────
+
+export interface SpreadRow {
+  spreadType: string;
+  name: string | null;
+  shortName: string | null;
+  positionCount: number;
+  positionNames: string[];
+  description: string | null;
+  readingCount: number;
+  locked: boolean; // structure (positionCount/positionNames) is fixed once readings exist
+}
+
+export interface SpreadUpdate {
+  name: string;
+  description: string;
+  positionCount?: number;
+  positionNames?: string[];
+}
+
+function toNum(v: unknown): number {
+  const anyV = v as { toNumber?: () => number };
+  if (v == null) return 0;
+  return typeof anyV?.toNumber === "function" ? anyV.toNumber() : Number(v);
+}
+
+/** All spread definitions with a `locked` flag (true once any reading uses the spread). */
+export async function getSpreads(): Promise<SpreadRow[]> {
+  const session = getDriver().session();
+  try {
+    const result = await session.run(GET_SPREADS_CYPHER);
+    return result.records.map((r) => {
+      const readingCount = toNum(r.get("readingCount"));
+      const rawNames = r.get("positionNames");
+      return {
+        spreadType: r.get("spreadType") as string,
+        name: (r.get("name") as string | null) ?? null,
+        shortName: (r.get("shortName") as string | null) ?? null,
+        positionCount: toNum(r.get("positionCount")),
+        positionNames: Array.isArray(rawNames)
+          ? rawNames.filter((n): n is string => typeof n === "string")
+          : [],
+        description: (r.get("description") as string | null) ?? null,
+        readingCount,
+        locked: readingCount > 0,
+      };
+    });
+  } finally {
+    await session.close();
+  }
+}
+
+/** Spread name + description for a spread_type (for Oracle/Trend prompt injection). */
+export async function getSpreadDescription(
+  spreadType: string,
+): Promise<{ name: string | null; description: string | null } | null> {
+  if (!spreadType) return null;
+  const session = getDriver().session();
+  try {
+    const result = await session.run(GET_SPREAD_DESCRIPTION_CYPHER, { spreadType });
+    if (result.records.length === 0) return null;
+    const r = result.records[0];
+    return {
+      name: (r.get("name") as string | null) ?? null,
+      description: (r.get("description") as string | null) ?? null,
+    };
+  } finally {
+    await session.close();
+  }
+}
+
+/** Update a spread. name+description always; structure only when `applyStructure`
+ *  (the caller must first verify the spread is unlocked). Returns false if not found. */
+export async function updateSpread(
+  spreadType: string,
+  u: SpreadUpdate,
+  applyStructure: boolean,
+): Promise<void> {
+  const session = getDriver().session();
+  try {
+    await session.run(UPDATE_SPREAD_META_CYPHER, {
+      spreadType,
+      name: u.name,
+      description: u.description,
+    });
+    if (applyStructure && u.positionCount != null && u.positionNames != null) {
+      await session.run(UPDATE_SPREAD_STRUCTURE_CYPHER, {
+        spreadType,
+        positionCount: neo4j.int(u.positionCount),
+        positionNames: u.positionNames,
+      });
+    }
+  } finally {
+    await session.close();
+  }
+}
+
+/** Create a new spread. Returns false if the spread_type already exists. */
+export async function createSpread(
+  spreadType: string,
+  u: Required<SpreadUpdate>,
+): Promise<boolean> {
+  if (await getSpreadDescription(spreadType)) return false; // already exists
+  const session = getDriver().session();
+  try {
+    await session.run(CREATE_SPREAD_CYPHER, {
+      spreadType,
+      name: u.name,
+      description: u.description,
+      positionCount: neo4j.int(u.positionCount),
+      positionNames: u.positionNames,
+    });
+    return true;
   } finally {
     await session.close();
   }

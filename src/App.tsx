@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CheckCircle2, Search, SlidersHorizontal, ArrowLeft, SortDesc, SortAsc, Loader2, User as UserIcon, LogOut, Table, LayoutList, UploadCloud } from 'lucide-react';
+import { CheckCircle2, Search, SlidersHorizontal, ArrowLeft, SortDesc, SortAsc, Loader2, User as UserIcon, LogOut, Table, LayoutList, UploadCloud, LayoutGrid } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { SpreadVisualizer } from './components/SpreadVisualizer';
 import { ReadingDetailPane } from './components/ReadingDetailPane';
@@ -11,6 +11,7 @@ import { DashboardSpreadsheet } from './components/DashboardSpreadsheet';
 import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './onboarding/Onboarding';
 import { CardUploader } from './components/CardUploader';
+import { ManageSpreads } from './components/ManageSpreads';
 import { DrawnCard, Reading } from './types';
 import { fetchReadings, fetchReadingDetail } from './lib/api';
 import { useAuth } from './lib/AuthContext';
@@ -30,6 +31,7 @@ export default function App() {
   const [selectedArchetypes, setSelectedArchetypes] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [viewMode, setViewMode] = useState<'cards' | 'spreadsheet' | 'upload'>('cards');
+  const [manageSpreadsOpen, setManageSpreadsOpen] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -198,8 +200,12 @@ export default function App() {
             >
               <UploadCloud className="w-5 h-5" />
             </button>
-            <button className="p-2 rounded-md hover:bg-white/5 border border-white/5 transition-colors">
-              <SlidersHorizontal className="w-5 h-5 opacity-60" />
+            <button
+              onClick={() => setManageSpreadsOpen(true)}
+              className="p-2 rounded-md hover:bg-white/5 border border-white/5 transition-colors text-[#FFFAE3]/60 hover:text-[#DEB564] mr-2"
+              title="Manage Spreads"
+            >
+              <LayoutGrid className="w-5 h-5" />
             </button>
             <a
               href="https://forms.pathsofreverence.com/tarot-reading"
@@ -384,12 +390,15 @@ export default function App() {
         )}
 
         {/* Reading Drill-down Detail Pane */}
-        <ReadingDetailPane 
-          reading={selectedReading} 
-          selectedCard={selectedCard} 
+        <ReadingDetailPane
+          reading={selectedReading}
+          selectedCard={selectedCard}
           onDeselectCard={() => setSelectedCardId(null)}
         />
       </main>
+
+      <ManageSpreads open={manageSpreadsOpen} onClose={() => setManageSpreadsOpen(false)} />
+
 
       {/* Footer Status Bar */}
       <footer className="h-8 border-t border-white/5 bg-black/60 px-4 flex items-center justify-between text-[10px] text-[#FFFAE3]/40 relative z-20 shrink-0">
