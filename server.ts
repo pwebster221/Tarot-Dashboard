@@ -12,7 +12,7 @@ import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/p
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
-import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
+import { registerAuthRoutes, requireAuth, requireAdmin } from "./server/auth.ts";
 import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding, getCardMeaning, getSpreads, getSpreadDescription, updateSpread, createSpread } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
 import { EventSource } from "eventsource";
@@ -360,7 +360,8 @@ async function startServer() {
     }
   });
 
-  app.put("/api/spreads/:spreadType", async (req, res) => {
+  // Writes to :Spread (a shared, non-user-scoped resource) are admin-only.
+  app.put("/api/spreads/:spreadType", requireAdmin, async (req, res) => {
     try {
       const spreadType = clampStr(req.params.spreadType, 120);
       const name = clampStr(req.body?.name, 200);
@@ -384,7 +385,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/spreads", async (req, res) => {
+  app.post("/api/spreads", requireAdmin, async (req, res) => {
     try {
       const slug = clampStr(req.body?.spreadType, 120).trim().toLowerCase()
         .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");

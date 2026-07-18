@@ -1,6 +1,32 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sessionCookieOptions, requireAuth, safeReturnTo } from "./auth.ts";
+import { sessionCookieOptions, requireAuth, requireAdmin, safeReturnTo } from "./auth.ts";
+
+test("requireAdmin fails closed when no admin env is set", () => {
+  const saved = { s: process.env.ARCANUM_ADMIN_SUBS, e: process.env.ARCANUM_ADMIN_EMAILS };
+  delete process.env.ARCANUM_ADMIN_SUBS; delete process.env.ARCANUM_ADMIN_EMAILS;
+  let status = 0; let nexted = false;
+  const res: any = { status(c: number) { status = c; return this; }, json() { return this; } };
+  requireAdmin({ user: { sub: "anyone", email: "a@b.c" } } as any, res, () => { nexted = true; });
+  assert.equal(status, 403);
+  assert.equal(nexted, false);
+  if (saved.s !== undefined) process.env.ARCANUM_ADMIN_SUBS = saved.s;
+  if (saved.e !== undefined) process.env.ARCANUM_ADMIN_EMAILS = saved.e;
+});
+
+test("requireAdmin allows an allow-listed sub, denies others", () => {
+  const saved = process.env.ARCANUM_ADMIN_SUBS;
+  process.env.ARCANUM_ADMIN_SUBS = "admin-sub-1, admin-sub-2";
+  const call = (sub: string) => {
+    let status = 0; let nexted = false;
+    const res: any = { status(c: number) { status = c; return this; }, json() { return this; } };
+    requireAdmin({ user: { sub } } as any, res, () => { nexted = true; });
+    return { status, nexted };
+  };
+  assert.deepEqual(call("admin-sub-2"), { status: 0, nexted: true });
+  assert.deepEqual(call("intruder"), { status: 403, nexted: false });
+  if (saved !== undefined) process.env.ARCANUM_ADMIN_SUBS = saved; else delete process.env.ARCANUM_ADMIN_SUBS;
+});
 
 test("session cookie options are httpOnly+lax with 1h maxAge (ms)", () => {
   const o = sessionCookieOptions();

@@ -81,6 +81,24 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   next();
 }
 
+const csv = (v: string | undefined) => (v || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+/** Restrict a route to admins. Runs AFTER requireAuth (reads req.user). Admins
+ *  are configured via ARCANUM_ADMIN_SUBS / ARCANUM_ADMIN_EMAILS (comma-separated);
+ *  fail-closed — if neither is set, no one is admin. Use for writes to shared,
+ *  non-user-scoped resources (e.g. :Spread definitions). */
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user as { sub?: string; email?: string } | undefined;
+  const subs = csv(process.env.ARCANUM_ADMIN_SUBS);
+  const emails = csv(process.env.ARCANUM_ADMIN_EMAILS).map((e) => e.toLowerCase());
+  const ok = !!user && (
+    (user.sub && subs.includes(user.sub)) ||
+    (user.email && emails.includes(user.email.toLowerCase()))
+  );
+  if (!ok) return res.status(403).json({ error: "forbidden — admin only" });
+  next();
+}
+
 /** Register /api/auth/* routes on the Express app. */
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/login", (req, res) => {
