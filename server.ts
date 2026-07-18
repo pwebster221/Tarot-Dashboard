@@ -6,11 +6,12 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { createHash } from "node:crypto";
 import multer from "multer";
-import { callLiteLLM } from "./server/llm.ts";
+import { callFable } from "./server/llm.ts";
 import { getAstroContext, getCardContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
+import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
 import { registerAuthRoutes, requireAuth } from "./server/auth.ts";
 import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding } from "./server/userData.ts";
 // MCP scaffolding — kept dormant; used only when ENABLE_MCP=true (see startServer).
@@ -50,14 +51,14 @@ async function interpret(
 ): Promise<{ text: string; reasoned: boolean }> {
   if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
     try {
-      const tools = reporeasonTools().filter((t) => ALLOWED_REASON_TOOLS.has(t.function.name));
+      const tools = reporeasonTools().filter((t) => ALLOWED_REASON_TOOLS.has(t.name));
       const text = await runReasoningAgent(system + REASONING_HINT, user, tools, reporeasonRunner(), 4);
       return { text, reasoned: true };
     } catch (err) {
       console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
     }
   }
-  return { text: await callLiteLLM(system, user), reasoned: false };
+  return { text: await callFable(system, user), reasoned: false };
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -135,6 +136,7 @@ async function startServer() {
   }
 
   await initReporeason();
+  await initMani();
 
   const _cardInsightCache = new Map<string, string>();
   const CARD_CACHE_MAX = 500;
@@ -259,13 +261,21 @@ async function startServer() {
         .digest("hex").slice(0, 32);
       const cacheKey = `${promptHash}-${today}`;
 
-      const astro = await getCardContext(cardName);
-      const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro);
-
       let result: string;
       if (_cardInsightCache.has(cacheKey)) {
         result = _cardInsightCache.get(cacheKey)!;
       } else {
+        const astro = await getCardContext(cardName);
+        // Mani attune enrichment (best-effort; "" when disabled/unreachable).
+        let mani = "";
+        if (maniReady()) {
+          const q = `${card?.card?.name} (${card?.isReversed ? "Reversed" : "Upright"}) in the `
+            + `"${card?.position?.name}" position. Question: ${reading?.question || "(none)"}. `
+            + `Specific meaning in spread: ${card?.specificMeaning || "(none)"}.`;
+          const convId = `arcanum-${reading?.id || "r"}-${card?.position?.id || card?.card?.id || cardName || "c"}`;
+          mani = await maniAttune(q, profileForCard(card), convId);
+        }
+        const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro, mani);
         const r = await interpret(system, user, wantReasoning);
         result = r.text;
         if (r.reasoned) cacheInsight(cacheKey, result); // only cache successful reasoning
@@ -282,7 +292,13 @@ async function startServer() {
       const { reading } = req.body;
       const wantReasoning = req.body.extraReasoning === true;
       const astro = await getAstroContext();
-      const { system, user } = buildOraclePrompt(reading, astro);
+      let mani = "";
+      if (maniReady()) {
+        const q = `Whole-reading Oracle synthesis. Question: ${reading?.question || "(none)"}. `
+          + `Cards: ${(reading?.drawnCards || []).map((c: any) => c?.card?.name).filter(Boolean).join(", ")}.`;
+        mani = await maniAttune(q, "jung", `arcanum-oracle-${reading?.id || "r"}`);
+      }
+      const { system, user } = buildOraclePrompt(reading, astro, mani);
       const { text } = await interpret(system, user, wantReasoning);
       res.json({ result: text });
     } catch (err: any) {
@@ -296,7 +312,13 @@ async function startServer() {
       const { readings } = req.body;
       const wantReasoning = req.body.extraReasoning === true;
       const astro = await getAstroContext();
-      const { system, user } = buildTrendPrompt(readings, astro);
+      let mani = "";
+      if (maniReady()) {
+        const q = `Cross-reading trend synthesis over ${(readings || []).length} readings; `
+          + `identify overarching themes and major trends.`;
+        mani = await maniAttune(q, "jung", "arcanum-trend");
+      }
+      const { system, user } = buildTrendPrompt(readings, astro, mani);
       const { text } = await interpret(system, user, wantReasoning);
       res.json({ result: text });
     } catch (err: any) {

@@ -29,3 +29,16 @@ test("buildOraclePrompt and buildTrendPrompt inject astro context", () => {
   assert.match(buildOraclePrompt(reading, ASTRO).user, /TODAY'S SKY/);
   assert.match(buildTrendPrompt([reading], ASTRO).user, /TODAY'S SKY/);
 });
+
+test("buildDeepPrompt injects the Mani perspective when provided, omits it when empty", () => {
+  const withMani = buildDeepPrompt(card, reading, "G", ASTRO, "MANI-STACK-DOC").user;
+  assert.match(withMani, /Mani Cognitive Perspective/);
+  assert.match(withMani, /MANI-STACK-DOC/);
+  const without = buildDeepPrompt(card, reading, "G", ASTRO).user;
+  assert.doesNotMatch(without, /Mani Cognitive Perspective/);
+});
+
+test("buildOraclePrompt and buildTrendPrompt inject the Mani perspective when provided", () => {
+  assert.match(buildOraclePrompt(reading, ASTRO, "MANI-ORACLE").user, /MANI-ORACLE/);
+  assert.match(buildTrendPrompt([reading], ASTRO, "MANI-TREND").user, /MANI-TREND/);
+});

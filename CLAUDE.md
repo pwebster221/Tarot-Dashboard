@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `arcanum-dashboard` is the Tarot reading review/visualization UI for the PathsOfReverence ecosystem. It is a single-process app: an Express server ([server.ts](server.ts)) on port 3000 that mounts Vite middleware in dev (so the React SPA is served from the same origin as the API). There is no separate frontend dev server.
 
-Originally scaffolded from Google AI Studio ("My Google AI Studio App" in [index.html](index.html), `GEMINI_API_KEY` is still wired through [vite.config.ts](vite.config.ts)), but the AI runtime now uses the **local LiteLLM model `alder-1-0`** (a tool-calling-tuned Hermes on CT 560) via a single OpenAI-compatible chat completion, enriched with **pre-fetched personalized astrological context** (Kairos natal + daily transit). It no longer uses Gemini, Anthropic Claude, or a live MCP tool loop.
+Originally scaffolded from Google AI Studio ("My Google AI Studio App" in [index.html](index.html), `GEMINI_API_KEY` is still wired through [vite.config.ts](vite.config.ts)), but the AI runtime now runs interpretations on **Claude Fable 5** (`claude-fable-5`, direct Anthropic API, with a server-side refusal fallback to Opus 4.8), enriched with **pre-fetched personalized astrological context** (Kairos natal + daily transit) and an optional **Mani (`attune`) cognitive-stack** perspective. Both the single-shot completion and the opt-in reporeason reasoning loop run on Fable 5 (Anthropic tool-use). It no longer uses Gemini or the local LiteLLM model.
 
 ## Common commands
 
@@ -24,15 +24,16 @@ Node >= 22 is required (declared in [package.json](package.json)).
 
 ## Required env vars (.env)
 
-- `LITELLM_BASE` — base URL of the LiteLLM OpenAI-compatible API (e.g. `http://10.20.0.153:4000/v1`; the IP is DHCP — verify it).
-- `LITELLM_API_KEY` — bearer key for LiteLLM. Without `LITELLM_BASE`/`LITELLM_API_KEY`, the `/api/ai/*` routes throw at request time, not at boot.
+- `ANTHROPIC_API_KEY` — key for the Anthropic API (Claude Fable 5 interpretations). Without it, the `/api/ai/*` routes throw at request time, not at boot.
 - `KAIROS_BASE` — base URL of the Kairos charts API for astro context (default `https://raw-charts.dubtown-server.us`).
 - `BIRTH_NAME`, `BIRTH_DATE`, `BIRTH_TIME`, `BIRTH_LATITUDE`, `BIRTH_LONGITUDE`, `BIRTH_CITY`, `BIRTH_TZ_OFFSET` — the querent's birth data used to compute the cached natal chart.
 - `CURRENT_LATITUDE`, `CURRENT_LONGITUDE` — current observer location for the daily transit overlay. If birth/observer vars are missing, astro context degrades to "unavailable" placeholders (logged) but interpretation still runs.
 - `DUBTOWN_API_KEY` — Bearer token for the readings backend proxy; required in production (the `/api/readings*` routes return 503 without it).
 - `ENABLE_MCP` — optional; set to `"true"` to re-enable the dormant MCP client loop. Default off.
-- `ENABLE_REPOREASON` — optional; `"true"` activates per-card live reasoning (alder-1-0 calls the reporeason MCP engine) on `deep-interpretation`. Default off. Expensive/slow (~30-40s per uncached card) — gated + per-card cached.
+- `ENABLE_REPOREASON` — optional; `"true"` activates per-card live reasoning (Fable 5 calls the reporeason MCP engine via Anthropic tool-use) on `deep-interpretation`. Default off. Expensive/slow — gated + per-card cached.
 - `REPOREASON_URL` — reporeason MCP endpoint (default `https://reporeason.dubtown-server.us/mcp`).
+- `ENABLE_MANI` — optional; `"true"` adds a Mani (`attune`) cognitive-stack enrichment call per interpretation, injected into the prompt. Profile is chosen by card tier (Majors→arendt, Court/Majestic→jung, Minors by suit). Best-effort: connect/attune failure degrades to no enrichment (logged), never blocks. Default off.
+- `MANI_URL` — Mani (keystone) MCP endpoint (default `https://mani.dubtown-server.us/mcp`).
 - `GEMINI_API_KEY` — legacy, exposed to the client via Vite `define`. Not used by current code; leave blank.
 
 ## Architecture
@@ -42,23 +43,24 @@ Node >= 22 is required (declared in [package.json](package.json)).
 [server.ts](server.ts) does five things in one process:
 1. Holds **dormant MCP scaffolding** (`mcpClients`/`mcpTools` Maps, the `servers` list, the SDK imports). The connect-at-boot loop only runs when `ENABLE_MCP="true"`; by default it logs a dormancy notice and skips connecting. Interpretation no longer uses live tools — it uses pre-fetched context instead (see below).
 2. Proxies `/api/readings*` to `https://readings.dubtown-server.us/readings*` with the Dubtown bearer token (the browser never sees the key).
-3. Hosts `/api/ai/{deep-interpretation,oracle-insight,trend-insight}`. `oracle`/`trend` fetch whole-reading astro context and make one `callLiteLLM` completion. `deep-interpretation` builds **per-card** context (`getCardContext`) and — when `ENABLE_REPOREASON=true` — runs a bounded reporeason tool-calling loop on top of it (else single-shot). See "AI interpretation" below.
+3. Hosts `/api/ai/{deep-interpretation,oracle-insight,trend-insight}`. `oracle`/`trend` fetch whole-reading astro context and make one `callFable` completion. `deep-interpretation` builds **per-card** context (`getCardContext`) and — when `ENABLE_REPOREASON=true` — runs a bounded Fable 5 reporeason tool-use loop on top of it (else single-shot). When `ENABLE_MANI=true`, each endpoint also folds in a Mani `attune` cognitive-stack perspective. See "AI interpretation" below.
 4. Hosts `/api/upload-cards` — multer disk upload to `public/cards/`, filenames normalized via `normalizeCardName()` (lowercase, strip leading number/`The `, spaces → underscores). The same normalization lives in [src/lib/api.ts](src/lib/api.ts) — keep them in sync.
 5. In dev (`NODE_ENV=development` or `VITE_DEV_SERVER=true`), spins up Vite in middleware mode. In prod, serves `dist/` + `public/` and SPA-falls-back to `index.html`.
 
 ### AI interpretation (server/ modules)
 
 The AI runtime is split into small, unit-tested modules under `server/`:
-- [server/llm.ts](server/llm.ts) — `callLiteLLM(system, user)`: one OpenAI-shaped chat completion against `LITELLM_BASE` with model `alder-1-0`. No streaming, no tools.
+- [server/llm.ts](server/llm.ts) — `callFable(system, user)`: one single-shot Claude Fable 5 completion via the Anthropic SDK, with a server-side refusal fallback to Opus 4.8. Also owns the shared lazily-constructed Anthropic client (`client()`/`_setClient` test hook, `FABLE_MODEL`, `EFFORT`, `textOf`) that the reasoning loop reuses. Fable's thinking is always on and never configured here; depth is tuned with `output_config.effort`.
 - [server/astroFormat.ts](server/astroFormat.ts) — pure extractors that turn Kairos payloads into compact text: `summarizeNatal`, `extractNatalPositions`, `summarizeTransit`, and `computeTransitAspects` (transit-to-natal aspects are computed locally from natal vs current longitudes, because Kairos's `cross_aspects` field is broken/empty).
 - [server/astroContext.ts](server/astroContext.ts) — `getAstroContext()` (oracle/trend: whole-chart natal+transit, natal cached for process life, transit per day) AND `getCardContext(cardName)` (deep: one cached `transit/full` overlay per day → lean shared summary + a per-card focused slice). Degrades gracefully (logs + placeholder) on Kairos failure.
 - [server/correspondences.ts](server/correspondences.ts) — static Golden Dawn card→planet/sign table (22 Majors, 36 decan pips, courts→element) used as the fallback anchor when a card has no direct placement.
 - [server/cardChart.ts](server/cardChart.ts) — `buildCardPlacementIndex` (inverts Kairos `deep_analysis.esoteric.placements[]` into card→placement) and `resolveCardFocus` (direct placement hit → ruling-planet fallback → element note; appends transit-to-natal aspects for the linked body). This is what makes each card read differently.
 - [server/prompts.ts](server/prompts.ts) — pure `buildDeepPrompt`/`buildOraclePrompt`/`buildTrendPrompt`, each returning `{ system, user }` with astro context injected.
-- [server/agent.ts](server/agent.ts) — `runReasoningAgent`: bounded OpenAI function-calling loop (caps: `maxIters`=4, `maxToolCalls`=8, forced final answer) dispatching tool calls via an injected runner. Used for the reporeason path.
-- [server/reporeason.ts](server/reporeason.ts) — optional reporeason MCP client (`initReporeason`/`reporeasonReady`/`reporeasonTools`/`reporeasonRunner`), gated by `ENABLE_REPOREASON`. Connect failure degrades to disabled (logged), never throws.
+- [server/agent.ts](server/agent.ts) — `runReasoningAgent`: bounded Claude Fable 5 **tool-use** loop (caps: `maxIters`=4, `maxToolCalls`=8, forced final answer) dispatching tool calls via an injected runner; `toAnthropicTools` maps MCP tool defs to Anthropic tool schema. On a Fable refusal it throws so the caller degrades to single-shot. Used for the reporeason path.
+- [server/reporeason.ts](server/reporeason.ts) — optional reporeason MCP client (`initReporeason`/`reporeasonReady`/`reporeasonTools`/`reporeasonRunner`), gated by `ENABLE_REPOREASON`. `reporeasonTools()` returns Anthropic-shaped tools. Connect failure degrades to disabled (logged), never throws.
+- [server/mani.ts](server/mani.ts) — optional Mani ("keystone") MCP client (`initMani`/`maniReady`/`maniAttune`/`profileForCard`), gated by `ENABLE_MANI`. One `attune` call per interpretation compiles a cognitive-stack document (profile by card tier) that is injected into the prompt. Best-effort: any failure yields `""` and never blocks interpretation.
 
-`oracle`/`trend` endpoints follow `getAstroContext()` → build prompt → `callLiteLLM`. `deep-interpretation` is `getCardContext()` → build prompt → (cache check → reporeason loop OR `callLiteLLM`), with a per-card cache keyed on a sha256 of the request inputs + day, and untrusted free-text clamped before it enters the prompt. If you add a new AI endpoint, add a prompt builder rather than inlining prompt strings.
+`oracle`/`trend` endpoints follow `getAstroContext()` → (optional Mani `attune`) → build prompt → `callFable`. `deep-interpretation` is cache check → on miss: `getCardContext()` → (optional Mani `attune`, profile by card tier) → build prompt → (reporeason loop OR `callFable`), with a per-card cache keyed on a sha256 of the request inputs + day, and untrusted free-text clamped before it enters the prompt. The Mani call runs only on a cache miss. If you add a new AI endpoint, add a prompt builder rather than inlining prompt strings.
 
 ### Frontend data flow
 

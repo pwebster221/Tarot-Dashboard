@@ -122,7 +122,12 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
 
     setIsGenerating(true);
     try {
-      const insight = await generateDeepInterpretation(selectedCard, reading, extraReasoning);
+      // Pass the "Specific Meaning in Spread" the user actually sees — a custom
+      // per-position edit takes precedence over the card's default meaning.
+      const resolvedMeaning =
+        customMeanings[`${reading.id}_${selectedCard.position.id}`] ?? selectedCard.specificMeaning ?? '';
+      const cardForAI = { ...selectedCard, specificMeaning: resolvedMeaning };
+      const insight = await generateDeepInterpretation(cardForAI, reading, extraReasoning);
       setInsightCache(prev => ({ ...prev, [cacheKey]: insight }));
     } catch (err: any) {
       console.error(err);

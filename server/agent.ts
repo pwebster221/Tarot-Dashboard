@@ -1,65 +1,73 @@
-// server/agent.ts — bounded OpenAI function-calling loop against LiteLLM,
-// dispatching tool calls through an injected runner (e.g. reporeason MCP).
-export interface OAITool { type: "function"; function: { name: string; description: string; parameters: any }; }
+// server/agent.ts — bounded Claude Fable 5 tool-use loop, dispatching tool
+// calls through an injected runner (e.g. the reporeason MCP). Shares the
+// Anthropic client with server/llm.ts. On a Fable refusal it throws so the
+// caller can degrade to a single-shot completion.
+import { client, FABLE_MODEL, MAX_TOKENS, EFFORT, textOf } from "./llm.ts";
+
+export interface AnthropicTool { name: string; description: string; input_schema: any; }
 export interface ToolRunner { run(name: string, args: any): Promise<string>; }
 
-export function toOpenAITools(mcpTools: any[]): OAITool[] {
+/** Map MCP tool defs to Anthropic tool schema. */
+export function toAnthropicTools(mcpTools: any[]): AnthropicTool[] {
   return (mcpTools || []).map((t) => ({
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description ?? "",
-      parameters: t.inputSchema ?? t.parameters ?? { type: "object", properties: {} },
-    },
+    name: t.name,
+    description: t.description ?? "",
+    input_schema: t.inputSchema ?? t.parameters ?? { type: "object", properties: {} },
   }));
 }
 
-async function chat(body: any): Promise<any> {
-  const base = process.env.LITELLM_BASE, key = process.env.LITELLM_API_KEY;
-  if (!base || !key) throw new Error("LITELLM_BASE and LITELLM_API_KEY must be set");
-  const res = await fetch(`${base}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: "alder-1-0", max_tokens: 2048, ...body }),
-  });
-  if (!res.ok) throw new Error(`LiteLLM ${res.status}: ${await res.text()}`);
-  return res.json();
-}
-
 export async function runReasoningAgent(
-  system: string, user: string, tools: OAITool[], runner: ToolRunner, maxIters = 4, maxToolCalls = 8,
+  system: string, user: string, tools: AnthropicTool[], runner: ToolRunner,
+  maxIters = 4, maxToolCalls = 8,
 ): Promise<string> {
-  const messages: any[] = [
-    { role: "system", content: system },
-    { role: "user", content: user },
-  ];
+  const messages: any[] = [{ role: "user", content: user }];
   let toolCalls = 0;
+
   for (let i = 0; i < maxIters; i++) {
-    const data = await chat({ messages, tools: tools.length ? tools : undefined });
-    const msg = data?.choices?.[0]?.message;
-    if (!msg) return "";
-    messages.push(msg);
-    const calls = msg.tool_calls;
-    if (!calls || !calls.length) return msg.content ?? "";
-    for (const call of calls) {
+    const resp: any = await client().messages.create({
+      model: FABLE_MODEL,
+      max_tokens: MAX_TOKENS,
+      output_config: { effort: EFFORT },
+      system,
+      messages,
+      tools: tools.length ? tools : undefined,
+    } as any);
+    if (resp.stop_reason === "refusal") throw new Error("Claude declined during reasoning");
+
+    // Echo the assistant turn back verbatim (thinking/tool_use blocks intact).
+    messages.push({ role: "assistant", content: resp.content });
+    const toolUses = (resp.content || []).filter((b: any) => b?.type === "tool_use");
+    if (resp.stop_reason !== "tool_use" || toolUses.length === 0) {
+      return textOf(resp.content);
+    }
+
+    const results: any[] = [];
+    for (const tu of toolUses) {
       let result: string;
       if (toolCalls >= maxToolCalls) {
         result = "tool budget exhausted";
-        messages.push({ role: "tool", tool_call_id: call.id, content: result });
-        continue;
+      } else {
+        toolCalls++;
+        try {
+          console.log(`[agent] tool call ${toolCalls}/${maxToolCalls}: ${tu.name}`);
+          result = await runner.run(tu.name, tu.input);
+        } catch (err: any) {
+          result = `tool error: ${err.message}`;
+        }
       }
-      toolCalls++;
-      try {
-        const args = JSON.parse(call.function?.arguments || "{}");
-        console.log(`[agent] tool call ${toolCalls}/${maxToolCalls}: ${call.function.name}`);
-        result = await runner.run(call.function.name, args);
-      } catch (err: any) {
-        result = `tool error: ${err.message}`;
-      }
-      messages.push({ role: "tool", tool_call_id: call.id, content: result });
+      results.push({ type: "tool_result", tool_use_id: tu.id, content: result });
     }
+    messages.push({ role: "user", content: results });
     if (toolCalls >= maxToolCalls) break;
   }
-  const data = await chat({ messages: [...messages, { role: "user", content: "Provide your final interpretation now, no more tools." }] });
-  return data?.choices?.[0]?.message?.content ?? "";
+
+  // Forced final answer with tools withheld.
+  const final: any = await client().messages.create({
+    model: FABLE_MODEL,
+    max_tokens: MAX_TOKENS,
+    output_config: { effort: EFFORT },
+    system,
+    messages: [...messages, { role: "user", content: "Provide your final interpretation now, no more tools." }],
+  } as any);
+  return textOf(final.content);
 }

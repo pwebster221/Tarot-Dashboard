@@ -1,48 +1,50 @@
-import { test, mock, afterEach } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { callLiteLLM } from "./llm.ts";
+import { callFable, _setClient, textOf, FABLE_MODEL, FALLBACK_MODEL } from "./llm.ts";
 
-afterEach(() => {
-  mock.restoreAll();
-  delete process.env.LITELLM_BASE;
-  delete process.env.LITELLM_API_KEY;
+afterEach(() => { _setClient(null); });
+
+test("textOf joins only text blocks and trims", () => {
+  const out = textOf([
+    { type: "text", text: "  A" },
+    { type: "thinking", thinking: "hidden" },
+    { type: "text", text: "B  " },
+  ]);
+  assert.equal(out, "AB");
 });
 
-test("callLiteLLM posts OpenAI-shaped body to LiteLLM and returns content", async () => {
-  process.env.LITELLM_BASE = "http://litellm.test/v1";
-  process.env.LITELLM_API_KEY = "sk-test";
-
-  const fetchMock = mock.method(globalThis, "fetch", async (url: any, init: any) => {
-    assert.equal(url, "http://litellm.test/v1/chat/completions");
-    const body = JSON.parse(init.body);
-    assert.equal(body.model, "alder-1-0");
-    assert.equal(body.messages[0].role, "system");
-    assert.equal(body.messages[1].role, "user");
-    assert.equal(body.max_tokens, 2048);
-    assert.equal(body.messages[0].content, "sys");
-    assert.equal(body.messages[1].content, "usr");
-    assert.equal(init.headers.Authorization, "Bearer sk-test");
-    return new Response(
-      JSON.stringify({ choices: [{ message: { content: "ORACLE REPLY" } }] }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
+test("callFable sends a Fable request with refusal fallback, no thinking config", async () => {
+  let captured: any = null;
+  _setClient({
+    beta: { messages: { create: async (params: any) => {
+      captured = params;
+      return { stop_reason: "end_turn", content: [{ type: "text", text: "ORACLE REPLY" }] };
+    } } },
   });
 
-  const out = await callLiteLLM("sys", "usr");
+  const out = await callFable("sys", "usr");
   assert.equal(out, "ORACLE REPLY");
-  assert.equal(fetchMock.mock.callCount(), 1);
+  assert.equal(captured.model, FABLE_MODEL);
+  assert.deepEqual(captured.fallbacks, [{ model: FALLBACK_MODEL }]);
+  assert.deepEqual(captured.betas, ["server-side-fallback-2026-06-01"]);
+  assert.equal(captured.system, "sys");
+  assert.equal(captured.messages[0].role, "user");
+  assert.equal(captured.messages[0].content, "usr");
+  assert.equal(captured.thinking, undefined); // Fable thinking is always on; never configured
 });
 
-test("callLiteLLM throws with status + body on non-200", async () => {
-  process.env.LITELLM_BASE = "http://litellm.test/v1";
-  process.env.LITELLM_API_KEY = "sk-test";
-  mock.method(globalThis, "fetch", async () =>
-    new Response("boom", { status: 502 }));
-  await assert.rejects(() => callLiteLLM("s", "u"), /LiteLLM 502: boom/);
+test("callFable throws when the fallback chain is fully refused", async () => {
+  _setClient({ beta: { messages: { create: async () => ({ stop_reason: "refusal", content: [] }) } } });
+  await assert.rejects(() => callFable("s", "u"), /declined/);
 });
 
-test("callLiteLLM throws when env vars are missing", async () => {
-  delete process.env.LITELLM_BASE;
-  delete process.env.LITELLM_API_KEY;
-  await assert.rejects(() => callLiteLLM("s", "u"), /LITELLM_BASE and LITELLM_API_KEY must be set/);
+test("callFable throws when ANTHROPIC_API_KEY is unset", async () => {
+  _setClient(null);
+  const saved = process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
+  try {
+    await assert.rejects(() => callFable("s", "u"), /ANTHROPIC_API_KEY must be set/);
+  } finally {
+    if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
+  }
 });

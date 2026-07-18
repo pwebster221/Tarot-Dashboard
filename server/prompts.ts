@@ -10,7 +10,7 @@ const ORACLE_SYSTEM =
 export interface Prompt { system: string; user: string; }
 
 export function buildDeepPrompt(
-  card: any, reading: any, graphContext: string, astro: string,
+  card: any, reading: any, graphContext: string, astro: string, mani = "",
 ): Prompt {
   const user = `
 Provide a "Deep Interpretation" for the following card drawn in a reading.
@@ -29,12 +29,19 @@ ${graphContext}
 
 **Astrological Context (this card):**
 ${astro}
-
+${maniSection(mani)}
 Synthesize a profound, nuanced, unique interpretation. ~3-4 paragraphs.`;
   return { system: ORACLE_SYSTEM, user };
 }
 
-export function buildOraclePrompt(reading: any, astro: string): Prompt {
+/** Optional Mani cognitive-stack perspective, injected only when present. */
+function maniSection(mani: string): string {
+  return mani && mani.trim()
+    ? `\n**Mani Cognitive Perspective (attuned reasoning stack):**\n${mani}\n`
+    : "";
+}
+
+export function buildOraclePrompt(reading: any, astro: string, mani = ""): Prompt {
   const cardsList = reading.drawnCards
     .map((c: any) => `- ${c.card.name} (${c.isReversed ? "Reversed" : "Upright"}) in position: ${c.position.name}`)
     .join("\n");
@@ -53,12 +60,12 @@ ${reading.summary}
 
 **Querent's Astrological Context:**
 ${astro}
-
+${maniSection(mani)}
 Provide a coherent narrative. 2-3 paragraphs.`;
   return { system: ORACLE_SYSTEM, user };
 }
 
-export function buildTrendPrompt(readings: any[], astro: string): Prompt {
+export function buildTrendPrompt(readings: any[], astro: string, mani = ""): Prompt {
   const readingsText = readings
     .map((r: any) => `Date: ${r.date}, Question: ${r.question}, Cards: ${r.drawnCards.map((c: any) => c.card.name).join(", ")}`)
     .join("\n");
@@ -70,6 +77,7 @@ Readings:
 ${readingsText}
 
 **Querent's Astrological Context:**
-${astro}`;
+${astro}
+${maniSection(mani)}`;
   return { system: ORACLE_SYSTEM, user };
 }

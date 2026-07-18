@@ -2,7 +2,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { EventSource } from "eventsource";
-import { toOpenAITools, type ToolRunner } from "./agent.ts";
+import { toAnthropicTools, type ToolRunner } from "./agent.ts";
 
 (global as any).EventSource = EventSource;
 
@@ -29,7 +29,7 @@ export async function initReporeason(): Promise<void> {
 }
 
 export function reporeasonReady(): boolean { return !!_client && _tools.length > 0; }
-export function reporeasonTools() { return toOpenAITools(_tools); }
+export function reporeasonTools() { return toAnthropicTools(_tools); }
 export function reporeasonRunner(): ToolRunner {
   return {
     async run(name: string, args: any): Promise<string> {
