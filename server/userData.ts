@@ -20,7 +20,7 @@ export const SAVE_INSIGHT_CYPHER = `
   WITH u
   MATCH (r:Reading {id: $readingId})
   MERGE (u)-[s:SAVED_INSIGHT {card_id: $cardId}]->(r)
-  SET s.text = $text, s.saved_at = datetime()
+  SET s.text = $text, s.summary = $summary, s.saved_at = datetime()
 `;
 
 export const UNSAVE_INSIGHT_CYPHER = `
@@ -32,7 +32,7 @@ export const GET_ANNOTATIONS_CYPHER = `
   MATCH (u:User {sub: $sub})
   OPTIONAL MATCH (u)-[n:NOTED]->(:Reading {id: $readingId})
   OPTIONAL MATCH (u)-[s:SAVED_INSIGHT]->(:Reading {id: $readingId})
-  RETURN n.text AS note, collect(s {.card_id, .text}) AS savedInsights
+  RETURN n.text AS note, collect(s {.card_id, .text, .summary}) AS savedInsights
 `;
 
 export const GET_TREND_CYPHER = `
@@ -183,10 +183,11 @@ export async function saveInsight(
   readingId: string,
   cardId: string,
   text: string,
+  summary = "",
 ): Promise<void> {
   const session = getDriver().session();
   try {
-    await session.run(SAVE_INSIGHT_CYPHER, { sub, readingId, cardId, text });
+    await session.run(SAVE_INSIGHT_CYPHER, { sub, readingId, cardId, text, summary });
   } finally {
     await session.close();
   }
@@ -210,7 +211,7 @@ export async function unsaveInsight(
 export async function getAnnotations(
   sub: string,
   readingId: string,
-): Promise<{ note: string | null; savedInsights: Array<{ card_id: string; text: string }> }> {
+): Promise<{ note: string | null; savedInsights: Array<{ card_id: string; text: string; summary: string }> }> {
   const session = getDriver().session();
   try {
     const result = await session.run(GET_ANNOTATIONS_CYPHER, { sub, readingId });
@@ -219,11 +220,11 @@ export async function getAnnotations(
     }
     const record = result.records[0];
     const note = record.get("note") as string | null;
-    const rawInsights = record.get("savedInsights") as Array<{ card_id: string | null; text: string | null }>;
+    const rawInsights = record.get("savedInsights") as Array<{ card_id: string | null; text: string | null; summary: string | null }>;
     // collect() over an OPTIONAL MATCH can yield entries with null card_id; filter them out
     const savedInsights = rawInsights
       .filter((s) => s.card_id != null)
-      .map((s) => ({ card_id: s.card_id as string, text: (s.text ?? "") }));
+      .map((s) => ({ card_id: s.card_id as string, text: (s.text ?? ""), summary: (s.summary ?? "") }));
     return { note, savedInsights };
   } finally {
     await session.close();

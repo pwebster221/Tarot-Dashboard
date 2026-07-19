@@ -8,7 +8,8 @@ import { createHash } from "node:crypto";
 import multer from "multer";
 import { callFable } from "./server/llm.ts";
 import { getAstroContext, getCardContext } from "./server/astroContext.ts";
-import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt } from "./server/prompts.ts";
+import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt } from "./server/prompts.ts";
+import { getPersonaForCard } from "./server/persona.ts";
 import { runReasoningAgent } from "./server/agent.ts";
 import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
 import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
@@ -277,12 +278,23 @@ async function startServer() {
         }
         // Canonical decan-derived meaning from the graph (Archetype composition).
         const gm = await getCardMeaning(cardName);
-        const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro, mani, gm?.meaning || "");
+        // The card's Persona skill (Major/Majestic/Minor) is injected into the
+        // system prompt so the model interprets AS that card.
+        const persona = getPersonaForCard(cardName);
+        const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro, mani, gm?.meaning || "", persona);
         const r = await interpret(system, user, wantReasoning);
         result = r.text;
         if (r.reasoned) cacheInsight(cacheKey, result); // only cache successful reasoning
       }
-      res.json({ result });
+      // Independent per-card summary — context for the whole-spread Oracle synthesis.
+      let summary = "";
+      try {
+        const sp = buildSummaryPrompt(cardName, card?.position?.name || "", result);
+        summary = await callFable(sp.system, sp.user);
+      } catch (err) {
+        console.error("[AI] summary generation failed (non-fatal):", err);
+      }
+      res.json({ result, summary });
     } catch (err: any) {
       console.error("[AI Server Error] Deep Interpretation:", err);
       res.status(500).json({ error: err.message });
@@ -494,11 +506,12 @@ async function startServer() {
   app.post("/api/readings/:id/insights/saved", async (req, res) => {
     const cardId = req.body?.cardId;
     const text = req.body?.text;
+    const summary = typeof req.body?.summary === "string" ? req.body.summary : "";
     if (typeof cardId !== "string" || typeof text !== "string") {
       return res.status(400).json({ error: "cardId and text (strings) required" });
     }
     try {
-      await saveInsight((req as any).user.sub, req.params.id, cardId, text);
+      await saveInsight((req as any).user.sub, req.params.id, cardId, text, summary);
       res.json({ ok: true });
     } catch (e: any) {
       console.error("[insight:save]", e);

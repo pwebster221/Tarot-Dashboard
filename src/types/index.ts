@@ -58,6 +58,7 @@ export interface DrawnCard {
   position: SpreadPosition;
   specificMeaning: string;
   isReversed: boolean;
+  summary?: string; // per-card interpretation summary, attached for the Oracle synthesis
 }
 
 export interface Reading {

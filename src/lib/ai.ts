@@ -38,7 +38,9 @@ export async function fetchCardMeaning(cardName: string): Promise<string | null>
   }
 }
 
-export async function generateDeepInterpretation(card: DrawnCard, reading: Reading, extraReasoning: boolean = false): Promise<string> {
+export interface DeepInterpretationResult { result: string; summary: string; }
+
+export async function generateDeepInterpretation(card: DrawnCard, reading: Reading, extraReasoning: boolean = false): Promise<DeepInterpretationResult> {
   try {
     const graphContext = await fetchGraphContext(card.card.name);
 
@@ -47,14 +49,14 @@ export async function generateDeepInterpretation(card: DrawnCard, reading: Readi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ card, reading, graphContext, extraReasoning })
     });
-    
+
     if (!response.ok) {
         const err = await response.json().catch(() => ({ error: 'Unknown server error' }));
         throw new Error(err.error || 'Failed to generate interpretation');
     }
 
     const data = await response.json();
-    return data.result || "Insight could not be generated.";
+    return { result: data.result || "Insight could not be generated.", summary: data.summary || "" };
   } catch (error) {
     console.error("AI Generation Error", error);
     throw new Error(error instanceof Error ? error.message : "Failed to generate interpretation.");

@@ -24,6 +24,10 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
   const [annotationsLoaded, setAnnotationsLoaded] = useState(false);
   // Canonical card meanings fetched from the graph, keyed by card name.
   const [cardMeanings, setCardMeanings] = useState<Record<string, string>>({});
+  // Independent per-card interpretation summaries, keyed the same as saved insights
+  // (`card-<cardId>-<positionName>`). Feed the whole-spread Oracle synthesis and
+  // gate it (Oracle requires every card interpreted). Mode-independent (latest wins).
+  const [summaryCache, setSummaryCache] = useState<Record<string, string>>({});
   // Shared "Extra reasoning" preference (default on) — governs deep + oracle.
   const [extraReasoning, toggleExtraReasoning] = useExtraReasoning();
 
@@ -35,14 +39,20 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
       try {
         const res = await fetch(`/api/readings/${reading.id}/annotations`, { credentials: 'include' });
         if (!res.ok) throw new Error(`annotations fetch ${res.status}`);
-        const data = await res.json() as { note: string | null; savedInsights: Array<{ card_id: string; text: string }> };
+        const data = await res.json() as { note: string | null; savedInsights: Array<{ card_id: string; text: string; summary?: string }> };
 
         // Hydrate saved insights: card_id in the API maps directly to the cacheKey used in state.
         const hydratedInsights: Record<string, string> = {};
+        const hydratedSummaries: Record<string, string> = {};
         for (const s of data.savedInsights) {
-          if (s.card_id) hydratedInsights[s.card_id] = s.text;
+          if (s.card_id) {
+            hydratedInsights[s.card_id] = s.text;
+            if (s.summary) hydratedSummaries[s.card_id] = s.summary;
+          }
         }
         setSavedInsights(hydratedInsights);
+        // Saved summaries count toward the Oracle gate across sessions.
+        setSummaryCache(prev => ({ ...hydratedSummaries, ...prev }));
 
         // Hydrate custom meanings: stored as JSON in the single note field.
         if (data.note) {
@@ -111,7 +121,8 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cardId: cacheKey, text }),
+          // Persist the card's summary alongside (per-card keys match summaryCache).
+          body: JSON.stringify({ cardId: cacheKey, text, summary: summaryCache[cacheKey] || '' }),
         });
       }
     } catch (err) {
@@ -145,8 +156,11 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
       const resolvedMeaning =
         customMeanings[`${reading.id}_${selectedCard.position.id}`] ?? selectedCard.specificMeaning ?? '';
       const cardForAI = { ...selectedCard, specificMeaning: resolvedMeaning };
-      const insight = await generateDeepInterpretation(cardForAI, reading, extraReasoning);
-      setInsightCache(prev => ({ ...prev, [cacheKey]: insight }));
+      const { result, summary } = await generateDeepInterpretation(cardForAI, reading, extraReasoning);
+      setInsightCache(prev => ({ ...prev, [cacheKey]: result }));
+      // Store the independent summary (mode-independent key, matches saved-insight key).
+      const sk = `card-${selectedCard.card.id}-${selectedCard.position.name}`;
+      if (summary) setSummaryCache(prev => ({ ...prev, [sk]: summary }));
     } catch (err: any) {
       console.error(err);
       setInsightCache(prev => ({ ...prev, [cacheKey]: `Error generating insight: ${err.message}` }));
@@ -158,10 +172,20 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
   const handleGenerateOracleInsight = async () => {
     const cacheKey = `oracle-${reading.id}-${extraReasoning ? 'r' : 's'}`;
     if (insightCache[cacheKey]) return;
+    if (!allCardsInterpreted) return; // gated: interpret every card first
 
     setIsGenerating(true);
     try {
-      const insight = await generateOracleInsight(reading, extraReasoning);
+      // Attach each card's independent interpretation summary so the synthesis
+      // builds on the per-card (persona-grounded) reads.
+      const readingWithSummaries = {
+        ...reading,
+        drawnCards: reading.drawnCards.map(dc => ({
+          ...dc,
+          summary: summaryCache[`card-${dc.card.id}-${dc.position.name}`] || '',
+        })),
+      };
+      const insight = await generateOracleInsight(readingWithSummaries, extraReasoning);
       setInsightCache(prev => ({ ...prev, [cacheKey]: insight }));
     } catch (err: any) {
       console.error(err);
@@ -173,6 +197,12 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
 
   const currentDetailInsight = selectedCard ? insightCache[`card-${selectedCard.card.id}-${selectedCard.position.name}-${extraReasoning ? 'r' : 's'}`] : null;
   const currentOracleInsight = !selectedCard ? insightCache[`oracle-${reading.id}-${extraReasoning ? 'r' : 's'}`] : null;
+
+  // Oracle gate: every drawn card must have a completed interpretation (summary)
+  // before the whole-spread synthesis can run.
+  const cardSummaryKey = (dc: DrawnCard) => `card-${dc.card.id}-${dc.position.name}`;
+  const interpretedCount = reading.drawnCards.filter(dc => !!summaryCache[cardSummaryKey(dc)]).length;
+  const allCardsInterpreted = reading.drawnCards.length > 0 && interpretedCount === reading.drawnCards.length;
 
   return (
     <section className="hidden lg:flex w-[450px] bg-black/40 border-l border-white/10 flex-col h-full overflow-y-auto">
@@ -416,10 +446,17 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                         
                         <ExtraReasoningToggle checked={extraReasoning} onToggle={toggleExtraReasoning} />
 
+                        {!allCardsInterpreted && (
+                          <div className="text-[10px] text-[#DEB564]/70 bg-[#DEB564]/5 border border-[#DEB564]/20 rounded-md px-3 py-2 text-center">
+                            Interpret every card first — {interpretedCount}/{reading.drawnCards.length} done.
+                            The whole-spread synthesis builds on each card’s interpretation.
+                          </div>
+                        )}
                         <button
                           onClick={handleGenerateOracleInsight}
-                          disabled={isGenerating}
-                          className="w-full py-4 bg-[#2a0d4e]/60 border border-[#DEB564]/30 text-[#FFFAE3]/90 rounded-lg text-sm hover:bg-[#2a0d4e]/60 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                          disabled={isGenerating || !allCardsInterpreted}
+                          title={!allCardsInterpreted ? `Interpret all ${reading.drawnCards.length} cards first (${interpretedCount} done)` : undefined}
+                          className="w-full py-4 bg-[#2a0d4e]/60 border border-[#DEB564]/30 text-[#FFFAE3]/90 rounded-lg text-sm hover:bg-[#2a0d4e]/60 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                           {isGenerating ? (extraReasoning ? "Reasoning…" : "Synthesizing Insight…") : current || saved ? "Regenerate Insight" : extraReasoning ? "Generate Oracle Insight (Deep Reasoning)" : "Generate Oracle Insight"}

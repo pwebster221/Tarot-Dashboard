@@ -10,11 +10,16 @@ const ORACLE_SYSTEM =
 export interface Prompt { system: string; user: string; }
 
 export function buildDeepPrompt(
-  card: any, reading: any, graphContext: string, astro: string, mani = "", graphMeaning = "",
+  card: any, reading: any, graphContext: string, astro: string, mani = "", graphMeaning = "", persona = "",
 ): Prompt {
   // Prefer the decan-derived Archetype composition (graphMeaning) over the sparse
   // client-side metadata, so the AI reads the same canonical meaning the UI shows.
   const generalMeaning = (graphMeaning && graphMeaning.trim()) || card.card.generalMeaning;
+  // The card's Persona skill is appended to the system prompt (additive) so the
+  // model reads AS that card. Never replaces the base Oracle system prompt.
+  const system = persona && persona.trim()
+    ? `${ORACLE_SYSTEM}\n\n--- PERSONA (embody this card while interpreting) ---\n${persona.trim()}`
+    : ORACLE_SYSTEM;
   const user = `
 Provide a "Deep Interpretation" for the following card drawn in a reading.
 
@@ -34,7 +39,7 @@ ${graphContext}
 ${astro}
 ${maniSection(mani)}
 Synthesize a profound, nuanced, unique interpretation. ~3-4 paragraphs.`;
-  return { system: ORACLE_SYSTEM, user };
+  return { system, user };
 }
 
 /** Optional Mani cognitive-stack perspective, injected only when present. */
@@ -61,9 +66,11 @@ export function buildOraclePrompt(
       const head = `- ${c.card.name} (${c.isReversed ? "Reversed" : "Upright"}) in position: ${c.position.name}`;
       const meaning = cardMeanings[c.card?.name];
       const specific = (c.specificMeaning || "").trim();
+      const summary = (c.summary || "").trim();
       const extras = [
         meaning ? `\n    · Meaning: ${meaning}` : "",
         specific ? `\n    · In this spread: ${specific}` : "",
+        summary ? `\n    · Interpretation summary: ${summary}` : "",
       ].join("");
       return head + extras;
     })
@@ -86,6 +93,19 @@ ${astro}
 ${maniSection(mani)}
 Provide a coherent narrative. 2-3 paragraphs.`;
   return { system: ORACLE_SYSTEM, user };
+}
+
+/** Prompt to summarize a single card's Deep interpretation independently — a
+ *  concise essence used as context for the whole-spread Oracle synthesis. */
+export function buildSummaryPrompt(cardName: string, position: string, interpretation: string): Prompt {
+  const system =
+    "You distill a tarot card interpretation into its essence. Return 1-2 sentences " +
+    "capturing what this card, in this position, is saying in this reading. No preamble, " +
+    "no restating the card name — just the essence.";
+  const user =
+    `Card: ${cardName} (position: ${position})\n\nInterpretation:\n${interpretation}\n\n` +
+    "Summarize the above in 1-2 sentences.";
+  return { system, user };
 }
 
 export function buildTrendPrompt(readings: any[], astro: string, mani = "", spreadDetails = ""): Prompt {
