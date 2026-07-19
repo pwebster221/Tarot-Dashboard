@@ -275,7 +275,9 @@ async function startServer() {
           const convId = `arcanum-${reading?.id || "r"}-${card?.position?.id || card?.card?.id || cardName || "c"}`;
           mani = await maniAttune(q, profileForCard(card), convId);
         }
-        const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro, mani);
+        // Canonical decan-derived meaning from the graph (Archetype composition).
+        const gm = await getCardMeaning(cardName);
+        const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro, mani, gm?.meaning || "");
         const r = await interpret(system, user, wantReasoning);
         result = r.text;
         if (r.reasoned) cacheInsight(cacheKey, result); // only cache successful reasoning
@@ -299,7 +301,14 @@ async function startServer() {
         mani = await maniAttune(q, "jung", `arcanum-oracle-${reading?.id || "r"}`);
       }
       const spreadDef = reading?.type ? await getSpreadDescription(reading.type) : null;
-      const { system, user } = buildOraclePrompt(reading, astro, mani, spreadDef?.description || "");
+      // Canonical decan-derived meanings for each distinct drawn card (graph Archetype composition).
+      const cardMeanings: Record<string, string> = {};
+      const names = [...new Set((reading?.drawnCards || []).map((c: any) => c?.card?.name).filter(Boolean))];
+      for (const n of names) {
+        const gm = await getCardMeaning(n as string);
+        if (gm?.meaning) cardMeanings[n as string] = gm.meaning;
+      }
+      const { system, user } = buildOraclePrompt(reading, astro, mani, spreadDef?.description || "", cardMeanings);
       const { text } = await interpret(system, user, wantReasoning);
       res.json({ result: text });
     } catch (err: any) {

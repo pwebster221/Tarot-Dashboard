@@ -30,6 +30,20 @@ test("buildOraclePrompt and buildTrendPrompt inject astro context", () => {
   assert.match(buildTrendPrompt([reading], ASTRO).user, /TODAY'S SKY/);
 });
 
+test("buildDeepPrompt prefers graphMeaning over card.card.generalMeaning", () => {
+  const withGraph = buildDeepPrompt(card, reading, "G", ASTRO, "", "DECAN-COMPOSITION-MEANING").user;
+  assert.match(withGraph, /DECAN-COMPOSITION-MEANING/);
+  assert.doesNotMatch(withGraph, /\*\*General Meaning:\*\* hope/); // graph supersedes card metadata
+  // Falls back to card metadata when no graphMeaning
+  assert.match(buildDeepPrompt(card, reading, "G", ASTRO).user, /\*\*General Meaning:\*\* hope/);
+});
+
+test("buildOraclePrompt injects per-card graph meanings + specific-in-spread", () => {
+  const u = buildOraclePrompt(reading, ASTRO, "", "", { "The Star": "STAR-DECAN-MEANING" }).user;
+  assert.match(u, /STAR-DECAN-MEANING/);
+  assert.match(u, /In this spread: renewal/); // card.specificMeaning
+});
+
 test("buildDeepPrompt injects the Mani perspective when provided, omits it when empty", () => {
   const withMani = buildDeepPrompt(card, reading, "G", ASTRO, "MANI-STACK-DOC").user;
   assert.match(withMani, /Mani Cognitive Perspective/);

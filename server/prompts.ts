@@ -10,8 +10,11 @@ const ORACLE_SYSTEM =
 export interface Prompt { system: string; user: string; }
 
 export function buildDeepPrompt(
-  card: any, reading: any, graphContext: string, astro: string, mani = "",
+  card: any, reading: any, graphContext: string, astro: string, mani = "", graphMeaning = "",
 ): Prompt {
+  // Prefer the decan-derived Archetype composition (graphMeaning) over the sparse
+  // client-side metadata, so the AI reads the same canonical meaning the UI shows.
+  const generalMeaning = (graphMeaning && graphMeaning.trim()) || card.card.generalMeaning;
   const user = `
 Provide a "Deep Interpretation" for the following card drawn in a reading.
 
@@ -21,7 +24,7 @@ Provide a "Deep Interpretation" for the following card drawn in a reading.
 
 **Card:** ${card.card.name} (Suit: ${card.card.suit || "N/A"}, Arcana: ${card.card.arcana})
 **Orientation:** ${card.isReversed ? "Reversed" : "Upright"}
-**General Meaning:** ${card.card.generalMeaning}
+**General Meaning:** ${generalMeaning}
 **Specific Interpretation in Spread:** ${card.specificMeaning}
 
 **Esoteric Repository Correspondences:**
@@ -49,9 +52,21 @@ function spreadSection(spreadDetail: string): string {
     : "";
 }
 
-export function buildOraclePrompt(reading: any, astro: string, mani = "", spreadDetail = ""): Prompt {
+export function buildOraclePrompt(
+  reading: any, astro: string, mani = "", spreadDetail = "",
+  cardMeanings: Record<string, string> = {},
+): Prompt {
   const cardsList = reading.drawnCards
-    .map((c: any) => `- ${c.card.name} (${c.isReversed ? "Reversed" : "Upright"}) in position: ${c.position.name}`)
+    .map((c: any) => {
+      const head = `- ${c.card.name} (${c.isReversed ? "Reversed" : "Upright"}) in position: ${c.position.name}`;
+      const meaning = cardMeanings[c.card?.name];
+      const specific = (c.specificMeaning || "").trim();
+      const extras = [
+        meaning ? `\n    · Meaning: ${meaning}` : "",
+        specific ? `\n    · In this spread: ${specific}` : "",
+      ].join("");
+      return head + extras;
+    })
     .join("\n");
   const user = `
 Provide a transcendent "Oracle Insight" synthesis of the entire reading.
