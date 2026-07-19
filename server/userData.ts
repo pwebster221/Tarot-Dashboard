@@ -87,16 +87,33 @@ export const UPDATE_SPREAD_META_CYPHER = `
 
 export const UPDATE_SPREAD_STRUCTURE_CYPHER = `
   MATCH (sp:Spread {spread_type: $spreadType})
-  SET sp.position_count = $positionCount, sp.position_names = $positionNames
+  SET sp.position_count = $positionCount, sp.position_names = $positionNames,
+      sp.form_slots_json = $formSlotsJson
 `;
 
 export const CREATE_SPREAD_CYPHER = `
   MERGE (sp:Spread {spread_type: $spreadType})
   ON CREATE SET sp.name = $name, sp.short_name = $name,
     sp.position_count = $positionCount, sp.position_names = $positionNames,
-    sp.description = $description, sp.created_at = datetime()
+    sp.description = $description, sp.form_slots_json = $formSlotsJson,
+    sp.interpretation_keys = $interpretationKeys, sp.created_at = datetime()
   RETURN sp.created_at IS NOT NULL AS created
 `;
+
+/** Build intake-form slots (FormCardSlot[]) from position names. A named
+ *  position is fixed; a blank one becomes a free-text label input. */
+export function formSlotsFromNames(positionNames: string[]): string {
+  return JSON.stringify(
+    positionNames.map((pn, i) => ({
+      order: i + 1,
+      position: pn && pn.trim() ? pn.trim() : null,
+      side: null,
+      card: null,
+      label: null,
+      hasLabelInput: !(pn && pn.trim()),
+    })),
+  );
+}
 
 export const GET_USER_STATE_CYPHER = `
   MATCH (u:User {sub: $sub})
@@ -376,6 +393,7 @@ export async function updateSpread(
         spreadType,
         positionCount: neo4j.int(u.positionCount),
         positionNames: u.positionNames,
+        formSlotsJson: formSlotsFromNames(u.positionNames),
       });
     }
   } finally {
@@ -397,6 +415,8 @@ export async function createSpread(
       description: u.description,
       positionCount: neo4j.int(u.positionCount),
       positionNames: u.positionNames,
+      formSlotsJson: formSlotsFromNames(u.positionNames),
+      interpretationKeys: ["main"],
     });
     return true;
   } finally {
