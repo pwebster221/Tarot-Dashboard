@@ -32,7 +32,7 @@ export const GET_ANNOTATIONS_CYPHER = `
   MATCH (u:User {sub: $sub})
   OPTIONAL MATCH (u)-[n:NOTED]->(:Reading {id: $readingId})
   OPTIONAL MATCH (u)-[s:SAVED_INSIGHT]->(:Reading {id: $readingId})
-  RETURN n.text AS note, collect(s {.card_id, .text, .summary}) AS savedInsights
+  RETURN n.text AS note, collect(s {.card_id, .text, .summary, .stale}) AS savedInsights
 `;
 
 export const GET_TREND_CYPHER = `

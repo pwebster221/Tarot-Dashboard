@@ -16,6 +16,8 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
   const [isGenerating, setIsGenerating] = useState(false);
   const [insightCache, setInsightCache] = useState<Record<string, string>>({}); // newly generated
   const [savedInsights, setSavedInsights] = useState<Record<string, string>>({}); // API-backed saved insights keyed by cardId
+  // Saved insights the webhook marked stale (e.g. an Oracle whose reading's cards were edited since). Keyed like savedInsights.
+  const [staleInsights, setStaleInsights] = useState<Record<string, boolean>>({});
   const [isEditingMeaning, setIsEditingMeaning] = useState(false);
   const [editedMeaning, setEditedMeaning] = useState('');
   const [customMeanings, setCustomMeanings] = useState<Record<string, string>>({});
@@ -39,18 +41,21 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
       try {
         const res = await fetch(`/api/readings/${reading.id}/annotations`, { credentials: 'include' });
         if (!res.ok) throw new Error(`annotations fetch ${res.status}`);
-        const data = await res.json() as { note: string | null; savedInsights: Array<{ card_id: string; text: string; summary?: string }> };
+        const data = await res.json() as { note: string | null; savedInsights: Array<{ card_id: string; text: string; summary?: string; stale?: boolean | null }> };
 
         // Hydrate saved insights: card_id in the API maps directly to the cacheKey used in state.
         const hydratedInsights: Record<string, string> = {};
         const hydratedSummaries: Record<string, string> = {};
+        const hydratedStale: Record<string, boolean> = {};
         for (const s of data.savedInsights) {
           if (s.card_id) {
             hydratedInsights[s.card_id] = s.text;
             if (s.summary) hydratedSummaries[s.card_id] = s.summary;
+            if (s.stale === true) hydratedStale[s.card_id] = true;
           }
         }
         setSavedInsights(hydratedInsights);
+        setStaleInsights(hydratedStale);
         // Saved summaries count toward the Oracle gate across sessions.
         setSummaryCache(prev => ({ ...hydratedSummaries, ...prev }));
 
@@ -373,6 +378,52 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                    <p className="text-[#FFFAE3]/90 text-sm font-medium">{reading.querent}</p>
                    <p className="text-[#FFFAE3]/60 text-sm leading-relaxed mt-1">"{reading.question}"</p>
                 </div>
+
+                {(() => {
+                  // Cards-only edit lives in Esoteric Forms; the webhook refuses changes to any
+                  // slot with a saved interpretation (same keys as savedInsights).
+                  const lockedCount = reading.drawnCards.filter(dc => !!savedInsights[cardSummaryKey(dc)]).length;
+                  const unsaved = reading.drawnCards.filter(dc => !!summaryCache[cardSummaryKey(dc)] && !savedInsights[cardSummaryKey(dc)]);
+                  const editHref = `https://forms.pathsofreverence.com/tarot-reading?edit=${encodeURIComponent(reading.id)}`;
+                  const total = reading.drawnCards.length;
+                  return (
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center justify-between gap-4">
+                      <div>
+                        <h4 className="text-[10px] uppercase tracking-widest text-[#DEB564] mb-1">Cards</h4>
+                        <p className="text-[#FFFAE3]/60 text-xs leading-relaxed">
+                          {!annotationsLoaded
+                            ? 'Loading saved interpretations…'
+                            : lockedCount === 0
+                              ? 'No saved interpretations yet — every card can be changed.'
+                              : lockedCount === total
+                                ? 'Every card has a saved interpretation — the spread is locked.'
+                                : `${lockedCount} of ${total} cards locked by saved interpretations.`}
+                        </p>
+                      </div>
+                      <a
+                        href={editHref}
+                        target="_blank"
+                        rel="noopener"
+                        aria-disabled={!annotationsLoaded || lockedCount === total}
+                        onClick={(e) => {
+                          if (!annotationsLoaded || lockedCount === total) { e.preventDefault(); return; }
+                          if (unsaved.length > 0 && !window.confirm(
+                            `${unsaved.length} card${unsaved.length === 1 ? ' has' : 's have'} an interpretation that is not saved to Archives. ` +
+                            `Unsaved interpretations do not lock their cards and will not survive a reload. Continue to edit?`)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        className={`shrink-0 flex items-center gap-2 text-xs px-3 py-2 rounded-lg border transition-colors ${
+                          !annotationsLoaded || lockedCount === total
+                            ? 'border-white/10 text-[#FFFAE3]/30 cursor-not-allowed'
+                            : 'border-[#DEB564]/40 text-[#FFFAE3]/80 hover:text-[#DEB564] hover:border-[#DEB564]'}`}
+                        title={lockedCount === total && total > 0 ? 'All cards have saved interpretations' : 'Edit cards in Esoteric Forms'}
+                      >
+                        <Edit2 className="w-3 h-3" /> Edit cards
+                      </a>
+                    </div>
+                  );
+                })()}
                 
                 {reading.summary && (
                   <div>
@@ -419,6 +470,11 @@ export function ReadingDetailPane({ reading, selectedCard, onDeselectCard }: Rea
                             <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/20">
                               <h4 className="text-[10px] uppercase tracking-widest text-emerald-400 flex items-center gap-2">
                                  <Bookmark className="w-3 h-3 fill-emerald-400" /> Saved Archive
+                                 {staleInsights[cacheKey] && (
+                                   <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 normal-case tracking-normal" title="The reading's cards were edited after this Oracle was saved. Regenerate to read the current spread.">
+                                     stale — cards edited since
+                                   </span>
+                                 )}
                               </h4>
                               <button onClick={() => toggleSaveInsight(cacheKey, saved)} className="text-emerald-400 hover:text-emerald-300 transition-colors" title="Remove from Archives">
                                 <Bookmark className="w-4 h-4 fill-emerald-500/20" />
