@@ -5,7 +5,11 @@
 import { client, FABLE_MODEL, MAX_TOKENS, EFFORT, textOf } from "./llm.ts";
 
 export interface AnthropicTool { name: string; description: string; input_schema: any; }
-export interface ToolRunner { run(name: string, args: any): Promise<string>; }
+export interface ToolRunner {
+  run(name: string, args: any): Promise<string>;
+  /** Told about a call the tool budget refused, so nothing is assumed to have run. */
+  skipped?(name: string, args: any): void;
+}
 
 /** Map MCP tool defs to Anthropic tool schema. */
 export function toAnthropicTools(mcpTools: any[]): AnthropicTool[] {
@@ -46,6 +50,7 @@ export async function runReasoningAgent(
       let result: string;
       if (toolCalls >= maxToolCalls) {
         result = "tool budget exhausted";
+        runner.skipped?.(tu.name, tu.input);
       } else {
         toolCalls++;
         try {
@@ -70,4 +75,46 @@ export async function runReasoningAgent(
     messages: [...messages, { role: "user", content: "Provide your final interpretation now, no more tools." }],
   } as any);
   return textOf(final.content);
+}
+
+/** True when a reason_verify reply granted permission. */
+function verifyGranted(result: string): boolean {
+  try {
+    return JSON.parse(result)?.permission === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The reasoning path proper: runReasoningAgent, reporting whether the answer was grounded.
+ * It is grounded only if the latest reason_verify on every frame it verified granted
+ * permission, so a later revise, a failed verify or one the budget skipped takes a grant
+ * back. An unverified
+ * answer is kept, because it may still be informed by a frame and a second completion
+ * would only know less, but the caller must not cache it as reasoned. Throws when no tools
+ * are available, so the caller makes a plain single-shot completion instead.
+ */
+export async function runGroundedAgent(
+  system: string, user: string, tools: AnthropicTool[], runner: ToolRunner,
+  maxIters = 4, maxToolCalls = 8,
+): Promise<{ text: string; grounded: boolean }> {
+  if (tools.length === 0) throw new Error("no reasoning tools available");
+  const verdicts = new Map<string, boolean>();    // exploration id -> its latest verdict
+  const watching: ToolRunner = {
+    async run(name, args) {
+      if (name !== "reason_verify") return runner.run(name, args);
+      const id = String(args?.exploration_id ?? "");
+      verdicts.set(id, false);                    // a verify that throws grants nothing
+      const result = await runner.run(name, args);
+      verdicts.set(id, verifyGranted(result));
+      return result;
+    },
+    skipped(name, args) {
+      if (name === "reason_verify") verdicts.set(String(args?.exploration_id ?? ""), false);
+    },
+  };
+  const text = await runReasoningAgent(system, user, tools, watching, maxIters, maxToolCalls);
+  const grounded = verdicts.size > 0 && [...verdicts.values()].every(Boolean);
+  return { text, grounded };
 }
