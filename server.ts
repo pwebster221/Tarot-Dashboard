@@ -33,7 +33,7 @@ function clampStr(v: unknown, max = 2000): string {
  * Run one interpretation. When the caller opts into reasoning AND reporeason is
  * enabled+connected, run the bounded reporeason tool loop; otherwise (or on any
  * agent error) fall back to a single-shot completion. `reasoned` reports whether
- * the reasoning path actually produced the result (used to decide caching).
+ * reason_verify granted the result (used to decide caching).
  */
 async function interpret(
   system: string, user: string, wantReasoning: boolean,
@@ -42,8 +42,8 @@ async function interpret(
   if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
     try {
       const tools = reporeasonTools().filter((t) => ALLOWED_REASON_TOOLS.has(t.name));
-      const text = await runGroundedAgent(system + REASONING_HINT, user, tools, reporeasonRunner());
-      return { text, reasoned: true };
+      const { text, grounded } = await runGroundedAgent(system + REASONING_HINT, user, tools, reporeasonRunner());
+      return { text, reasoned: grounded };
     } catch (err) {
       console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
     }

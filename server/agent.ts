@@ -72,28 +72,35 @@ export async function runReasoningAgent(
   return textOf(final.content);
 }
 
+/** True when a reason_verify reply granted permission. */
+function verifyGranted(result: string): boolean {
+  try {
+    return JSON.parse(result)?.permission === "granted";
+  } catch {
+    return false;
+  }
+}
+
 /**
- * The reasoning path proper: runReasoningAgent, refusing to call the result reasoned unless
- * at least one tool call returned. The loop feeds tool failures back to the model, and the
- * model may also skip the tools outright; either way it answers from recall, and without
- * this check that answer would be cached as a reasoned reading.
- * Throws so the caller degrades to a single-shot, uncached completion.
+ * The reasoning path proper: runReasoningAgent, reporting whether the answer was grounded.
+ * It is grounded only if reason_verify granted permission during the run. An unverified
+ * answer is kept, because it may still be informed by a frame and a second completion
+ * would only know less, but the caller must not cache it as reasoned. Throws when no tools
+ * are available, so the caller makes a plain single-shot completion instead.
  */
 export async function runGroundedAgent(
   system: string, user: string, tools: AnthropicTool[], runner: ToolRunner,
   maxIters = 4, maxToolCalls = 8,
-): Promise<string> {
+): Promise<{ text: string; grounded: boolean }> {
   if (tools.length === 0) throw new Error("no reasoning tools available");
-  let calls = 0, ok = 0;
-  const counting: ToolRunner = {
+  let grounded = false;
+  const watching: ToolRunner = {
     async run(name, args) {
-      calls++;
       const result = await runner.run(name, args);
-      ok++;
+      if (name === "reason_verify" && verifyGranted(result)) grounded = true;
       return result;
     },
   };
-  const text = await runReasoningAgent(system, user, tools, counting, maxIters, maxToolCalls);
-  if (ok === 0) throw new Error(`no reasoning tool call succeeded (${calls} attempted)`);
-  return text;
+  const text = await runReasoningAgent(system, user, tools, watching, maxIters, maxToolCalls);
+  return { text, grounded };
 }

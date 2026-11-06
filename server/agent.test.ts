@@ -94,42 +94,47 @@ test("hitting maxIters triggers a final no-tools forced-answer pass", async () =
   assert.equal(calls[2].tools, undefined);  // forced pass sends no tools
 });
 
-test("a run whose every tool call failed is not reasoned (so it is never cached as such)", async () => {
-  const { client } = fakeClient([
-    { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu1", name: "t", input: {} }] },
-    { stop_reason: "end_turn", content: [{ type: "text", text: "FROM RECALL" }] },
-  ]);
+const GRANTED = JSON.stringify({ permission: "granted", grounding: 1 });
+const REVISE = JSON.stringify({ permission: "revise", grounding: 0.2 });
+const useTool = (id: string, name: string) => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id, name, input: {} }] });
+const finalText = (text: string) => ({ stop_reason: "end_turn", content: [{ type: "text", text }] });
+const TOOLS = toAnthropicTools([{ name: "reason_explore", inputSchema: {} }, { name: "reason_verify", inputSchema: {} }]);
+const replies = (byName: Record<string, string>) => ({
+  async run(name: string) { if (name in byName) return byName[name]; throw new Error("session gone"); },
+});
+
+test("a run is grounded once reason_verify grants permission", async () => {
+  const { client } = fakeClient([useTool("a", "reason_explore"), useTool("b", "reason_verify"), finalText("READING")]);
   _setClient(client);
-  const runner = { async run() { throw new Error("session gone"); } };
-  await assert.rejects(
-    () => runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), runner),
-    /no reasoning tool call succeeded/,
+  assert.deepEqual(
+    await runGroundedAgent("s", "u", TOOLS, replies({ reason_explore: "frame", reason_verify: GRANTED })),
+    { text: "READING", grounded: true },
   );
 });
 
-test("one good tool call among failures still counts as reasoned", async () => {
-  const { client } = fakeClient([
-    { stop_reason: "tool_use", content: [
-      { type: "tool_use", id: "tu1", name: "t", input: {} },
-      { type: "tool_use", id: "tu2", name: "t", input: {} },
-    ] },
-    { stop_reason: "end_turn", content: [{ type: "text", text: "GROUNDED" }] },
-  ]);
+test("a granted verify still counts after an earlier revise", async () => {
+  const { client } = fakeClient([useTool("a", "reason_verify"), useTool("b", "reason_verify"), finalText("READING")]);
   _setClient(client);
   let n = 0;
-  const runner = { async run() { if (++n === 1) throw new Error("once"); return "frame"; } };
-  assert.equal(await runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), runner), "GROUNDED");
+  const runner = { async run() { return n++ === 0 ? REVISE : GRANTED; } };
+  assert.equal((await runGroundedAgent("s", "u", TOOLS, runner)).grounded, true);
 });
 
-test("no permitted tools means no reasoning path, not an unaided run labelled reasoned", async () => {
+const ungrounded: [string, any[], Record<string, string>][] = [
+  ["no tool was called", [finalText("READING")], {}],
+  ["it explored but never verified", [useTool("a", "reason_explore"), finalText("READING")], { reason_explore: "frame" }],
+  ["verify said revise", [useTool("a", "reason_verify"), finalText("READING")], { reason_verify: REVISE }],
+  ["verify failed", [useTool("a", "reason_explore"), useTool("b", "reason_verify"), finalText("READING")], { reason_explore: "frame" }],
+  ["verify returned something unparseable", [useTool("a", "reason_verify"), finalText("READING")], { reason_verify: "granted?" }],
+];
+for (const [why, responses, byName] of ungrounded) {
+  test(`the answer is kept but not grounded when ${why}`, async () => {
+    const { client } = fakeClient(responses);
+    _setClient(client);
+    assert.deepEqual(await runGroundedAgent("s", "u", TOOLS, replies(byName)), { text: "READING", grounded: false });
+  });
+}
+
+test("no permitted tools means no reasoning path, not an unaided run", async () => {
   await assert.rejects(() => runGroundedAgent("s", "u", [], { async run() { return ""; } }), /no reasoning tools/);
-});
-
-test("an answer that never called a tool is not reasoned", async () => {
-  const { client } = fakeClient([{ stop_reason: "end_turn", content: [{ type: "text", text: "FROM RECALL" }] }]);
-  _setClient(client);
-  await assert.rejects(
-    () => runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), { async run() { return ""; } }),
-    /no reasoning tool call succeeded/,
-  );
 });
