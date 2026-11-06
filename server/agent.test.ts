@@ -1,6 +1,6 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { runReasoningAgent, toAnthropicTools } from "./agent.ts";
+import { runGroundedAgent, runReasoningAgent, toAnthropicTools } from "./agent.ts";
 import { _setClient } from "./llm.ts";
 
 afterEach(() => { _setClient(null); });
@@ -14,24 +14,24 @@ function fakeClient(responses: any[]) {
 }
 
 test("toAnthropicTools maps MCP tool defs to Anthropic tool schema", () => {
-  const out = toAnthropicTools([{ name: "reason_orient", description: "d", inputSchema: { type: "object", properties: { q: { type: "string" } } } }]);
-  assert.equal(out[0].name, "reason_orient");
+  const out = toAnthropicTools([{ name: "reason_explore", description: "d", inputSchema: { type: "object", properties: { q: { type: "string" } } } }]);
+  assert.equal(out[0].name, "reason_explore");
   assert.equal(out[0].description, "d");
   assert.equal(out[0].input_schema.properties.q.type, "string");
 });
 
 test("agent dispatches a tool call then returns final text", async () => {
   const { client, calls } = fakeClient([
-    { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu1", name: "reason_get_correspondence", input: { a: "The Sun" } }] },
+    { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu1", name: "reason_identify_symbols", input: { a: "The Sun" } }] },
     { stop_reason: "end_turn", content: [{ type: "text", text: "FINAL" }] },
   ]);
   _setClient(client);
   const ran: string[] = [];
   const runner = { async run(name: string) { ran.push(name); return "path: Sun<->The Sun"; } };
-  const tools = toAnthropicTools([{ name: "reason_get_correspondence", inputSchema: {} }]);
+  const tools = toAnthropicTools([{ name: "reason_identify_symbols", inputSchema: {} }]);
   const out = await runReasoningAgent("sys", "usr", tools, runner, 4);
   assert.equal(out, "FINAL");
-  assert.deepEqual(ran, ["reason_get_correspondence"]);
+  assert.deepEqual(ran, ["reason_identify_symbols"]);
   // 2nd request carries the tool_result back as a user message.
   const trMsg = calls[1].messages.find((m: any) => Array.isArray(m.content) && m.content[0]?.type === "tool_result");
   assert.equal(trMsg.content[0].tool_use_id, "tu1");
@@ -92,4 +92,35 @@ test("hitting maxIters triggers a final no-tools forced-answer pass", async () =
   assert.equal(out, "FORCED");
   assert.equal(calls.length, 3);            // 2 loop iters + 1 forced pass
   assert.equal(calls[2].tools, undefined);  // forced pass sends no tools
+});
+
+test("a run whose every tool call failed is not reasoned (so it is never cached as such)", async () => {
+  const { client } = fakeClient([
+    { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu1", name: "t", input: {} }] },
+    { stop_reason: "end_turn", content: [{ type: "text", text: "FROM RECALL" }] },
+  ]);
+  _setClient(client);
+  const runner = { async run() { throw new Error("session gone"); } };
+  await assert.rejects(
+    () => runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), runner),
+    /reasoning tool calls failed/,
+  );
+});
+
+test("one good tool call among failures still counts as reasoned", async () => {
+  const { client } = fakeClient([
+    { stop_reason: "tool_use", content: [
+      { type: "tool_use", id: "tu1", name: "t", input: {} },
+      { type: "tool_use", id: "tu2", name: "t", input: {} },
+    ] },
+    { stop_reason: "end_turn", content: [{ type: "text", text: "GROUNDED" }] },
+  ]);
+  _setClient(client);
+  let n = 0;
+  const runner = { async run() { if (++n === 1) throw new Error("once"); return "frame"; } };
+  assert.equal(await runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), runner), "GROUNDED");
+});
+
+test("no permitted tools means no reasoning path, not an unaided run labelled reasoned", async () => {
+  await assert.rejects(() => runGroundedAgent("s", "u", [], { async run() { return ""; } }), /no reasoning tools/);
 });

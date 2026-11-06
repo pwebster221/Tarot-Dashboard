@@ -71,3 +71,28 @@ export async function runReasoningAgent(
   } as any);
   return textOf(final.content);
 }
+
+/**
+ * The reasoning path proper: runReasoningAgent, refusing to call the result reasoned when
+ * nothing grounded it. The loop feeds tool failures back to the model, which answers from
+ * recall anyway; without this check that answer would be cached as a reasoned reading.
+ * Throws so the caller degrades to a single-shot, uncached completion.
+ */
+export async function runGroundedAgent(
+  system: string, user: string, tools: AnthropicTool[], runner: ToolRunner,
+  maxIters = 4, maxToolCalls = 8,
+): Promise<string> {
+  if (tools.length === 0) throw new Error("no reasoning tools available");
+  let calls = 0, ok = 0;
+  const counting: ToolRunner = {
+    async run(name, args) {
+      calls++;
+      const result = await runner.run(name, args);
+      ok++;
+      return result;
+    },
+  };
+  const text = await runReasoningAgent(system, user, tools, counting, maxIters, maxToolCalls);
+  if (calls > 0 && ok === 0) throw new Error(`all ${calls} reasoning tool calls failed`);
+  return text;
+}

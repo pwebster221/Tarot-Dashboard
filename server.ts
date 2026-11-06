@@ -10,8 +10,11 @@ import { callFable } from "./server/llm.ts";
 import { getAstroContext, getCardContext } from "./server/astroContext.ts";
 import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt } from "./server/prompts.ts";
 import { getPersonaForCard } from "./server/persona.ts";
-import { runReasoningAgent } from "./server/agent.ts";
-import { initReporeason, reporeasonReady, reporeasonTools, reporeasonRunner } from "./server/reporeason.ts";
+import { runGroundedAgent } from "./server/agent.ts";
+import {
+  ALLOWED_REASON_TOOLS, REASONING_HINT, ensureReporeason, initReporeason, reporeasonReady,
+  reporeasonRunner, reporeasonTools,
+} from "./server/reporeason.ts";
 import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
 import { registerAuthRoutes, requireAuth, requireAdmin } from "./server/auth.ts";
 import { upsertNote, deleteNote, saveInsight, unsaveInsight, getAnnotations, getTrendInsight, setTrendInsight, completeOnboarding, getCardMeaning, getSpreads, getSpreadDescription, updateSpread, createSpread } from "./server/userData.ts";
@@ -26,21 +29,6 @@ function clampStr(v: unknown, max = 2000): string {
   return typeof v === "string" ? v.slice(0, max) : (v == null ? "" : String(v).slice(0, max));
 }
 
-// Stateless reporeason tools only. The session-pipeline tools (reason_orient /
-// reason_traverse / reason_synthesize) require a reason_start_session →
-// reason_finalize_session lifecycle the agent loop does not manage; calling them
-// bare returns "no session" errors and the model then asks the USER for a session
-// id instead of interpreting. These three return data directly, no session needed.
-const ALLOWED_REASON_TOOLS = new Set([
-  "reason_identify_symbols", "reason_get_correspondence", "reason_get_elemental_balance",
-]);
-const REASONING_HINT =
-  "\n\nYou may call the reporeason tools (reason_identify_symbols, " +
-  "reason_get_correspondence, reason_get_elemental_balance) to investigate the " +
-  "symbolic correspondences in this reading before answering. All the data you need " +
-  "is already in this prompt — never ask the user for more input or a session id; " +
-  "always deliver the interpretation yourself.";
-
 /**
  * Run one interpretation. When the caller opts into reasoning AND reporeason is
  * enabled+connected, run the bounded reporeason tool loop; otherwise (or on any
@@ -50,10 +38,11 @@ const REASONING_HINT =
 async function interpret(
   system: string, user: string, wantReasoning: boolean,
 ): Promise<{ text: string; reasoned: boolean }> {
+  if (wantReasoning) await ensureReporeason();
   if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
     try {
       const tools = reporeasonTools().filter((t) => ALLOWED_REASON_TOOLS.has(t.name));
-      const text = await runReasoningAgent(system + REASONING_HINT, user, tools, reporeasonRunner(), 4);
+      const text = await runGroundedAgent(system + REASONING_HINT, user, tools, reporeasonRunner());
       return { text, reasoned: true };
     } catch (err) {
       console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
