@@ -120,6 +120,33 @@ test("a granted verify still counts after an earlier revise", async () => {
   assert.equal((await runGroundedAgent("s", "u", TOOLS, runner)).grounded, true);
 });
 
+const verifyOf = (id: string, exploration_id: string) => ({
+  stop_reason: "tool_use", content: [{ type: "tool_use", id, name: "reason_verify", input: { exploration_id } }],
+});
+const sequence = (...results: string[]) => {
+  let n = 0;
+  return { async run() { const r = results[n++]; if (r === "THROW") throw new Error("lost"); return r; } };
+};
+const groundedAfter = async (ids: string[], results: string[]) => {
+  const { client } = fakeClient([...ids.map((id, i) => verifyOf(`v${i}`, id)), finalText("READING")]);
+  _setClient(client);
+  return (await runGroundedAgent("s", "u", TOOLS, sequence(...results))).grounded;
+};
+
+test("a later revise on the same frame clears an earlier grant", async () => {
+  assert.equal(await groundedAfter(["exp:1", "exp:1"], [GRANTED, REVISE]), false);
+});
+
+test("a later failed verify on the same frame clears an earlier grant", async () => {
+  assert.equal(await groundedAfter(["exp:1", "exp:1"], [GRANTED, "THROW"]), false);
+});
+
+test("every frame verified must end granted", async () => {
+  assert.equal(await groundedAfter(["exp:1", "exp:2"], [REVISE, GRANTED]), false);
+  assert.equal(await groundedAfter(["exp:1", "exp:2"], [GRANTED, REVISE]), false);
+  assert.equal(await groundedAfter(["exp:1", "exp:2"], [GRANTED, GRANTED]), true);
+});
+
 const ungrounded: [string, any[], Record<string, string>][] = [
   ["no tool was called", [finalText("READING")], {}],
   ["it explored but never verified", [useTool("a", "reason_explore"), finalText("READING")], { reason_explore: "frame" }],

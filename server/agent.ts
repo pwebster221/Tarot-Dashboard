@@ -83,7 +83,8 @@ function verifyGranted(result: string): boolean {
 
 /**
  * The reasoning path proper: runReasoningAgent, reporting whether the answer was grounded.
- * It is grounded only if reason_verify granted permission during the run. An unverified
+ * It is grounded only if the latest reason_verify on every frame it verified granted
+ * permission, so a later revise or a failed verify takes a grant back. An unverified
  * answer is kept, because it may still be informed by a frame and a second completion
  * would only know less, but the caller must not cache it as reasoned. Throws when no tools
  * are available, so the caller makes a plain single-shot completion instead.
@@ -93,14 +94,18 @@ export async function runGroundedAgent(
   maxIters = 4, maxToolCalls = 8,
 ): Promise<{ text: string; grounded: boolean }> {
   if (tools.length === 0) throw new Error("no reasoning tools available");
-  let grounded = false;
+  const verdicts = new Map<string, boolean>();    // exploration id -> its latest verdict
   const watching: ToolRunner = {
     async run(name, args) {
+      if (name !== "reason_verify") return runner.run(name, args);
+      const id = String(args?.exploration_id ?? "");
+      verdicts.set(id, false);                    // a verify that throws grants nothing
       const result = await runner.run(name, args);
-      if (name === "reason_verify" && verifyGranted(result)) grounded = true;
+      verdicts.set(id, verifyGranted(result));
       return result;
     },
   };
   const text = await runReasoningAgent(system, user, tools, watching, maxIters, maxToolCalls);
+  const grounded = verdicts.size > 0 && [...verdicts.values()].every(Boolean);
   return { text, grounded };
 }
