@@ -73,9 +73,10 @@ export async function runReasoningAgent(
 }
 
 /**
- * The reasoning path proper: runReasoningAgent, refusing to call the result reasoned when
- * nothing grounded it. The loop feeds tool failures back to the model, which answers from
- * recall anyway; without this check that answer would be cached as a reasoned reading.
+ * The reasoning path proper: runReasoningAgent, refusing to call the result reasoned unless
+ * at least one tool call returned. The loop feeds tool failures back to the model, and the
+ * model may also skip the tools outright; either way it answers from recall, and without
+ * this check that answer would be cached as a reasoned reading.
  * Throws so the caller degrades to a single-shot, uncached completion.
  */
 export async function runGroundedAgent(
@@ -93,6 +94,6 @@ export async function runGroundedAgent(
     },
   };
   const text = await runReasoningAgent(system, user, tools, counting, maxIters, maxToolCalls);
-  if (calls > 0 && ok === 0) throw new Error(`all ${calls} reasoning tool calls failed`);
+  if (ok === 0) throw new Error(`no reasoning tool call succeeded (${calls} attempted)`);
   return text;
 }

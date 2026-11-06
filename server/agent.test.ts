@@ -103,7 +103,7 @@ test("a run whose every tool call failed is not reasoned (so it is never cached 
   const runner = { async run() { throw new Error("session gone"); } };
   await assert.rejects(
     () => runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), runner),
-    /reasoning tool calls failed/,
+    /no reasoning tool call succeeded/,
   );
 });
 
@@ -123,4 +123,13 @@ test("one good tool call among failures still counts as reasoned", async () => {
 
 test("no permitted tools means no reasoning path, not an unaided run labelled reasoned", async () => {
   await assert.rejects(() => runGroundedAgent("s", "u", [], { async run() { return ""; } }), /no reasoning tools/);
+});
+
+test("an answer that never called a tool is not reasoned", async () => {
+  const { client } = fakeClient([{ stop_reason: "end_turn", content: [{ type: "text", text: "FROM RECALL" }] }]);
+  _setClient(client);
+  await assert.rejects(
+    () => runGroundedAgent("s", "u", toAnthropicTools([{ name: "t", inputSchema: {} }]), { async run() { return ""; } }),
+    /no reasoning tool call succeeded/,
+  );
 });
