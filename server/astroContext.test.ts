@@ -92,3 +92,10 @@ test("getCardContext degrades to CHART SNAPSHOT unavailable when overlay fetch f
   const text = await getCardContext("The Devil", f, "2026-06-02");
   assert.equal(text, "CHART SNAPSHOT: unavailable.");
 });
+
+test(".env.example matches the Kairos contract in code", () => {
+  const example = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
+  assert.match(example, /^KAIROS_BASE=http:\/\/10\.20\.0\.215:8060$/m);
+  assert.match(example, /^KAIROS_API_TOKEN=$/m);
+  assert.doesNotMatch(example, /raw-charts/);
+});

@@ -25,7 +25,8 @@ Node >= 22 is required (declared in [package.json](package.json)).
 ## Required env vars (.env)
 
 - `ANTHROPIC_API_KEY` — key for the Anthropic API (Claude Fable 5 interpretations). Without it, the `/api/ai/*` routes throw at request time, not at boot.
-- `KAIROS_BASE` — base URL of the Kairos charts API for astro context (default `https://raw-charts.dubtown-server.us`).
+- `KAIROS_BASE` — base URL of the Kairos charts API for astro context (default `http://10.20.0.215:8060`, on the LAN).
+- `KAIROS_API_TOKEN` — bearer token for Kairos; the first comma-separated value is sent. Unset sends no header, and Kairos then refuses the call.
 - `BIRTH_NAME`, `BIRTH_DATE`, `BIRTH_TIME`, `BIRTH_LATITUDE`, `BIRTH_LONGITUDE`, `BIRTH_CITY`, `BIRTH_TZ_OFFSET` — the querent's birth data used to compute the cached natal chart.
 - `CURRENT_LATITUDE`, `CURRENT_LONGITUDE` — current observer location for the daily transit overlay. If birth/observer vars are missing, astro context degrades to "unavailable" placeholders (logged) but interpretation still runs.
 - `DUBTOWN_API_KEY` — Bearer token for the readings backend proxy; required in production (the `/api/readings*` routes return 503 without it).
