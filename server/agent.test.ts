@@ -147,6 +147,18 @@ test("every frame verified must end granted", async () => {
   assert.equal(await groundedAfter(["exp:1", "exp:2"], [GRANTED, GRANTED]), true);
 });
 
+for (const [why, second] of [["the same frame", "exp:1"], ["a new frame", "exp:2"]]) {
+  test(`a verify on ${why} skipped by the tool budget clears grounding`, async () => {
+    const { client } = fakeClient([
+      { stop_reason: "tool_use", content: [...verifyOf("v1", "exp:1").content, ...verifyOf("v2", second).content] },
+      finalText("READING"),
+    ]);
+    _setClient(client);
+    const out = await runGroundedAgent("s", "u", TOOLS, sequence(GRANTED, GRANTED), 4, 1);
+    assert.equal(out.grounded, false);
+  });
+}
+
 const ungrounded: [string, any[], Record<string, string>][] = [
   ["no tool was called", [finalText("READING")], {}],
   ["it explored but never verified", [useTool("a", "reason_explore"), finalText("READING")], { reason_explore: "frame" }],
