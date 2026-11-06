@@ -12,6 +12,10 @@ export const ALLOWED_REASON_TOOLS = new Set([
   "reason_explore", "reason_exploration", "reason_verify", "reason_identify_symbols",
 ]);
 
+// Reads, safe to replay after a lost response. reason_explore stores a frame and proposes a
+// pointer, and reason_verify appends to the frame's log, so replaying either writes twice.
+const REPLAYABLE_TOOLS = new Set(["reason_exploration", "reason_identify_symbols"]);
+
 // reason_verify matches each citation's ref exactly against the stored frame, and a claim
 // without citations is ungrounded, so the hint says to copy refs verbatim. The frame is
 // model-facing by Paul's ruling: it informs the reasoning and is never its subject.
@@ -23,6 +27,8 @@ export const REASONING_HINT =
   "beats that archetype claimed (anchors), who else claimed them by planetary court, the " +
   "nearest beats (kin) and the land; refusals, zeros and empties in it are results, not " +
   "gaps. Explore only the one or two symbols this card turns on: you have 8 tool calls. " +
+  "reason_verify checks one exploration id, so when a claim joins two symbols, explore " +
+  "them once as a compound and verify its cmp: id. " +
   "reason_exploration(exploration_id, section) reads a section in full. Before answering, " +
   "call reason_verify(exploration_id, interpretation, claims), where each claim is " +
   "{assertion, cites: [{kind, ref}]}, kind is one of beat, archetype, card, court, pair, " +
@@ -112,10 +118,11 @@ export function reporeasonRunner(): ToolRunner {
       try {
         r = await _client.callTool({ name, arguments: args });
       } catch (err) {
-        // A transport failure: the session may have died mid-run. One fresh try.
-        console.warn(`[reporeason] ${name} failed; reconnecting once:`, err);
+        // A transport failure: the session may have died mid-run, and the call may still
+        // have landed. Reconnect for the next call, but replay only what writes nothing.
+        console.warn(`[reporeason] ${name} failed; reconnecting:`, err);
         await connect();
-        if (!_client) throw err;
+        if (!_client || !REPLAYABLE_TOOLS.has(name)) throw err;
         r = await _client.callTool({ name, arguments: args });
       }
       const text = (r.content || []).map((c: any) => c.text).filter(Boolean).join("\n");

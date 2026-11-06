@@ -54,7 +54,7 @@ test("a session killed by a redeploy reconnects, for tool listing and for calls"
   };
   _setConnector(async () => (++connects === 1 ? { ...dead, listTools: live.listTools } : live));
   await ensureReporeason();                   // first connect: lists, then the session dies
-  assert.equal(await reporeasonRunner().run("reason_explore", { symbol: "Pluto" }), "FRAME");
+  assert.equal(await reporeasonRunner().run("reason_exploration", { exploration_id: "exp:1" }), "FRAME");
   assert.equal(connects, 2);
 
   let alive = true;
@@ -66,6 +66,29 @@ test("a session killed by a redeploy reconnects, for tool listing and for calls"
   assert.equal(connects, 4);
   assert.equal(reporeasonReady(), true);
   assert.deepEqual(reporeasonTools().map((t) => t.name), V3);
+});
+
+for (const tool of ["reason_explore", "reason_verify"]) {
+  test(`a lost response never replays ${tool}, which writes, but still reconnects`, async () => {
+    process.env.ENABLE_REPOREASON = "true";
+    let connects = 0, sends = 0;
+    const lost = {
+      listTools: async () => ({ tools: named(V3) }),
+      callTool: async () => { sends++; throw new Error("socket hang up"); },
+    };
+    const live = { ...lost, callTool: async () => { sends++; return { content: [{ type: "text", text: "OK" }] }; } };
+    _setConnector(async () => (++connects === 1 ? lost : live));
+    await ensureReporeason();
+    await assert.rejects(() => reporeasonRunner().run(tool, {}), /socket hang up/);
+    assert.equal(sends, 1);                    // the possibly-landed write is not repeated
+    assert.equal(connects, 2);
+    assert.equal(await reporeasonRunner().run(tool, {}), "OK");  // the next call has a session
+  });
+}
+
+test("the hint says how to verify a claim that joins two symbols", () => {
+  assert.match(REASONING_HINT, /compound/);
+  assert.match(REASONING_HINT, /cmp:/);
 });
 
 test("a connection lost at startup recovers on a later request", async () => {
