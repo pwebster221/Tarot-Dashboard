@@ -42,7 +42,15 @@ function observer() {
   };
 }
 
-const KAIROS_BASE = () => process.env.KAIROS_BASE || "https://raw-charts.dubtown-server.us";
+const KAIROS_BASE = () => process.env.KAIROS_BASE || "http://10.20.0.215:8060";
+
+// Kairos bearer gate: first comma-separated value of KAIROS_API_TOKEN; unset -> no header.
+function kairosHeaders(): Record<string, string> {
+  const token = (process.env.KAIROS_API_TOKEN || "").split(",")[0].trim();
+  return token
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    : { "Content-Type": "application/json" };
+}
 
 export function defaultKairosFetcher(): KairosFetcher {
   return {
@@ -53,7 +61,7 @@ export function defaultKairosFetcher(): KairosFetcher {
       // the natal extractors consume; standalone natal/full omits `_raw`.
       const r = await fetch(`${KAIROS_BASE()}/api/v1/transit/full`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: kairosHeaders(),
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(`Kairos natal ${r.status}`);
@@ -63,7 +71,7 @@ export function defaultKairosFetcher(): KairosFetcher {
     async transitFull(body) {
       const r = await fetch(`${KAIROS_BASE()}/api/v1/transit/full`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: kairosHeaders(),
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(`Kairos transit ${r.status}`);
