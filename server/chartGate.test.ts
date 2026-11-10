@@ -94,6 +94,13 @@ test("an allowed occupant cannot be given a sign it is not in", () => {
   assert.deepEqual(flagChartBodies("Your Saturn is in Capricorn.", overlay, devil), []);
 });
 
+test("motion and aspects are never supplied, so they are always flagged", () => {
+  assert.deepEqual(flagChartBodies("Your Saturn is retrograde.", overlay, devil), ["Saturn is retrograde"]);
+  assert.deepEqual(flagChartBodies("Natal Saturn trines Mars.", overlay, devil), ["Saturn trines Mars"]);
+  assert.deepEqual(flagChartBodies("Saturn square your Sun tightens it.", overlay, devil), ["Saturn square your Sun"]);
+  assert.deepEqual(flagChartBodies("The square of the Tower holds.", overlay, devil), []);
+});
+
 test("the querent's angles are not available to a card", () => {
   assert.deepEqual(flagChartBodies("Your Ascendant colors this.", overlay, []), ["Your Ascendant"]);
   assert.deepEqual(flagChartBodies("Your rising dread is the point.", overlay, []), []);

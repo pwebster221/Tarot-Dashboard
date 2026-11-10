@@ -51,6 +51,7 @@ const ANGLES = /\byour\s+(ascendant|rising sign|midheaven|descendant)\b/gi;
  * Chart statements in a reading that the gate did not allow. A planet's name alone is never flagged,
  * since the dossier's lords are planets: only a phrase that places it in this querent's chart or
  * today's sky counts, and "Saturn in Capricorn" counts only when the chart really has it there.
+ * This is a phrase check with one retry, so it catches the common forms and not every paraphrase.
  */
 export function flagChartBodies(text: string, overlay: any, allowed: Occupant[]): string[] {
   const placed = placements(overlay);
@@ -77,6 +78,9 @@ export function flagChartBodies(text: string, overlay: any, allowed: Occupant[])
   for (const m of text.matchAll(new RegExp(`\\b(${names})\\s+(?:is\\s+)?in\\s+(?:your|the)\\s+(?:\\w+)\\s+house\\b`, "gi"))) {
     flags.add(m[0]);   // the gate supplies decans only, so a house is never given, even for an occupant
   }
+  // Motion and aspects are never in the company data, so no body may be given them.
+  for (const m of text.matchAll(new RegExp(`\\b(?:${names})\\s+(?:is\\s+)?(?:retrograde|stationary)\\b`, "gi"))) flags.add(m[0]);
+  for (const m of text.matchAll(new RegExp(`\\b(?:${names})\\s+(?:is\\s+)?(?:conjunct|conjoins?|squares?|trines?|sextiles?|opposes?|opposite)\\s+(?:to\\s+)?(?:(?:your|natal|transiting)\\s+)?(?:the\\s+)?(?:${names})\\b`, "gi"))) flags.add(m[0]);
   for (const m of text.matchAll(ANGLES)) flags.add(m[0]);
   return [...flags];
 }
