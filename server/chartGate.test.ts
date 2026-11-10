@@ -79,7 +79,8 @@ test("body-in-sign matches whatever the casing", () => {
 test("a body placed in a house is a chart statement", () => {
   assert.deepEqual(flagChartBodies("Saturn in your eighth house brings closure.", overlay, []), ["Saturn in your eighth house"]);
   assert.deepEqual(flagChartBodies("Mars in the first house pushes.", overlay, []), ["Mars in the first house"]);
-  assert.deepEqual(flagChartBodies("Saturn in your eighth house stands inside this card.", overlay, devil), []);
+  // An allowed occupant comes with its decan only, so any house claimed for it is invented.
+  assert.deepEqual(flagChartBodies("Saturn in your eighth house stands inside this card.", overlay, devil), ["Saturn in your eighth house"]);
 });
 
 test("the Home line's silhouette is not a chart statement", () => {

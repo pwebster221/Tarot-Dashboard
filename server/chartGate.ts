@@ -70,7 +70,7 @@ export function flagChartBodies(text: string, overlay: any, allowed: Occupant[])
     if (here.length && !here.some((p) => isAllowed(p.body, p.source))) flags.add(m[0]);
   }
   for (const m of text.matchAll(new RegExp(`\\b(${names})\\s+(?:is\\s+)?in\\s+(?:your|the)\\s+(?:\\w+)\\s+house\\b`, "gi"))) {
-    if (!isAllowed(m[1], "natal")) flags.add(m[0]);
+    flags.add(m[0]);   // the gate supplies decans only, so a house is never given, even for an occupant
   }
   for (const m of text.matchAll(ANGLES)) flags.add(m[0]);
   return [...flags];
