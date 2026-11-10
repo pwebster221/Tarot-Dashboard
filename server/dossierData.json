@@ -1,0 +1,1200 @@
+{
+ "cards": [
+  {
+   "name": "Ace of Chalices",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": "Feeling",
+   "stack": [
+    "Fi",
+    "Fe"
+   ]
+  },
+  {
+   "name": "Ace of Pentacles",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "Sensing",
+   "stack": [
+    "Se",
+    "Si"
+   ]
+  },
+  {
+   "name": "Ace of Swords",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": "Thinking",
+   "stack": [
+    "Ti",
+    "Te"
+   ]
+  },
+  {
+   "name": "Ace of Wands",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": "Intuition",
+   "stack": [
+    "Ne",
+    "Ni"
+   ]
+  },
+  {
+   "name": "Death",
+   "type": "major",
+   "number": 13,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Netzach (Eternity) & Tiphareth (Beauty)",
+   "letter": "Nun",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Eight of Chalices",
+   "type": "minor",
+   "number": 8,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Eight of Pentacles",
+   "type": "minor",
+   "number": 8,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Eight of Swords",
+   "type": "minor",
+   "number": 8,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Eight of Wands",
+   "type": "minor",
+   "number": 8,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Five of Chalices",
+   "type": "minor",
+   "number": 5,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Five of Pentacles",
+   "type": "minor",
+   "number": 5,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Five of Swords",
+   "type": "minor",
+   "number": 5,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Five of Wands",
+   "type": "minor",
+   "number": 5,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Four of Chalices",
+   "type": "minor",
+   "number": 4,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Four of Pentacles",
+   "type": "minor",
+   "number": 4,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Four of Swords",
+   "type": "minor",
+   "number": 4,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Four of Wands",
+   "type": "minor",
+   "number": 4,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Judgement",
+   "type": "major",
+   "number": 20,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Hod (Splendor) & Malkuth (Kingdom)",
+   "letter": "Shin",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Justice",
+   "type": "major",
+   "number": 11,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Geburah (Severity) & Tiphareth (Beauty)",
+   "letter": "Lamed",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "King of Chalices",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ESFJ",
+   "stack": [
+    "Fe",
+    "Si",
+    "Ne",
+    "Ti"
+   ]
+  },
+  {
+   "name": "King of Pentacles",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ESFP",
+   "stack": [
+    "Se",
+    "Fi",
+    "Te",
+    "Ni"
+   ]
+  },
+  {
+   "name": "King of Swords",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ENTJ",
+   "stack": [
+    "Te",
+    "Ni",
+    "Se",
+    "Fi"
+   ]
+  },
+  {
+   "name": "King of Wands",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ENTP",
+   "stack": [
+    "Ne",
+    "Ti",
+    "Fe",
+    "Si"
+   ]
+  },
+  {
+   "name": "Knight of Chalices",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ENFJ",
+   "stack": [
+    "Fe",
+    "Ni",
+    "Se",
+    "Ti"
+   ]
+  },
+  {
+   "name": "Knight of Pentacles",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ESTP",
+   "stack": [
+    "Se",
+    "Ti",
+    "Fe",
+    "Ni"
+   ]
+  },
+  {
+   "name": "Knight of Swords",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ESTJ",
+   "stack": [
+    "Te",
+    "Si",
+    "Ne",
+    "Fi"
+   ]
+  },
+  {
+   "name": "Knight of Wands",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ENFP",
+   "stack": [
+    "Ne",
+    "Fi",
+    "Te",
+    "Si"
+   ]
+  },
+  {
+   "name": "Nine of Chalices",
+   "type": "minor",
+   "number": 9,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Nine of Pentacles",
+   "type": "minor",
+   "number": 9,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Nine of Swords",
+   "type": "minor",
+   "number": 9,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Nine of Wands",
+   "type": "minor",
+   "number": 9,
+   "gridSeat": "Netzach",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Page of Chalices",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": "INFP",
+   "stack": [
+    "Fi",
+    "Ne",
+    "Si",
+    "Te"
+   ]
+  },
+  {
+   "name": "Page of Pentacles",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ISTJ",
+   "stack": [
+    "Si",
+    "Te",
+    "Fi",
+    "Ne"
+   ]
+  },
+  {
+   "name": "Page of Swords",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Hod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ISTP",
+   "stack": [
+    "Ti",
+    "Se",
+    "Ni",
+    "Fe"
+   ]
+  },
+  {
+   "name": "Page of Wands",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": "INFJ",
+   "stack": [
+    "Ni",
+    "Fe",
+    "Ti",
+    "Se"
+   ]
+  },
+  {
+   "name": "Queen of Chalices",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ISFP",
+   "stack": [
+    "Fi",
+    "Se",
+    "Ni",
+    "Te"
+   ]
+  },
+  {
+   "name": "Queen of Pentacles",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Yesod",
+   "treePath": "",
+   "letter": "",
+   "mbti": "ISFJ",
+   "stack": [
+    "Si",
+    "Fe",
+    "Ti",
+    "Ne"
+   ]
+  },
+  {
+   "name": "Queen of Swords",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "INTP",
+   "stack": [
+    "Ti",
+    "Ne",
+    "Si",
+    "Fe"
+   ]
+  },
+  {
+   "name": "Queen of Wands",
+   "type": "court",
+   "number": 0,
+   "gridSeat": "Tiferet",
+   "treePath": "",
+   "letter": "",
+   "mbti": "INTJ",
+   "stack": [
+    "Ni",
+    "Te",
+    "Fi",
+    "Se"
+   ]
+  },
+  {
+   "name": "Seven of Chalices",
+   "type": "minor",
+   "number": 7,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Seven of Pentacles",
+   "type": "minor",
+   "number": 7,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Seven of Swords",
+   "type": "minor",
+   "number": 7,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Seven of Wands",
+   "type": "minor",
+   "number": 7,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Six of Chalices",
+   "type": "minor",
+   "number": 6,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Six of Pentacles",
+   "type": "minor",
+   "number": 6,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Six of Swords",
+   "type": "minor",
+   "number": 6,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Six of Wands",
+   "type": "minor",
+   "number": 6,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Strength",
+   "type": "major",
+   "number": 8,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Chesed (Mercy) & Geburah (Severity)",
+   "letter": "Teth",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Temperance",
+   "type": "major",
+   "number": 14,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Yesod (Foundation) & Tiphareth (Beauty)",
+   "letter": "Samekh",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Ten of Chalices",
+   "type": "minor",
+   "number": 10,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Ten of Pentacles",
+   "type": "minor",
+   "number": 10,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Ten of Swords",
+   "type": "minor",
+   "number": 10,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Ten of Wands",
+   "type": "minor",
+   "number": 10,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Chariot",
+   "type": "major",
+   "number": 7,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Binah (Understanding) & Geburah (Severity)",
+   "letter": "Chet",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Devil",
+   "type": "major",
+   "number": 15,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Hod (Splendor) & Tiphareth (Beauty)",
+   "letter": "Ayin",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Emperor",
+   "type": "major",
+   "number": 4,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Chokmah (Wisdom) & Tiphareth (Beauty)",
+   "letter": "Heh",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Empress",
+   "type": "major",
+   "number": 3,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Chokmah (Wisdom) & Binah (Understanding)",
+   "letter": "Daleth",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Fool",
+   "type": "major",
+   "number": 0,
+   "gridSeat": "Void",
+   "treePath": "Path Between Kether (Crown) & Chokmah (Wisdom)",
+   "letter": "Aleph",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Hanged Man",
+   "type": "major",
+   "number": 12,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Geburah (Severity) & Hod (Splendor)",
+   "letter": "Mem",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Hermit",
+   "type": "major",
+   "number": 9,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Chesed (Mercy) & Tiphareth (Beauty)",
+   "letter": "Yod",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Hierophant",
+   "type": "major",
+   "number": 5,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Chokmah (Wisdom) & Chesed (Mercy)",
+   "letter": "Vav",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The High Priestess",
+   "type": "major",
+   "number": 2,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Kether (Crown) & Tiphareth (Beauty)",
+   "letter": "Gimel",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Lovers",
+   "type": "major",
+   "number": 6,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Binah (Understanding) & Tiphareth (Beauty)",
+   "letter": "Zayin",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Magician",
+   "type": "major",
+   "number": 1,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Kether (Crown) & Binah (Understanding)",
+   "letter": "Beth",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Moon",
+   "type": "major",
+   "number": 18,
+   "gridSeat": "Malkhut",
+   "treePath": "Path Between Netzach (Victory) & Malkuth (Kingdom)",
+   "letter": "Qoph",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Star",
+   "type": "major",
+   "number": 17,
+   "gridSeat": "Keter",
+   "treePath": "Path Between Netzach (Victory) & Yesod (Foundation)",
+   "letter": "Tzadi",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Sun",
+   "type": "major",
+   "number": 19,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Hod (Splendor) & Yesod (Foundation)",
+   "letter": "Resh",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The Tower",
+   "type": "major",
+   "number": 16,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Netzach (Victory) & Hod (Glory)",
+   "letter": "Peh",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "The World",
+   "type": "major",
+   "number": 21,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Yesod (Foundation) & Malkuth (Kingdom)",
+   "letter": "Tav",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Three of Chalices",
+   "type": "minor",
+   "number": 3,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Three of Pentacles",
+   "type": "minor",
+   "number": 3,
+   "gridSeat": "Geburah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Three of Swords",
+   "type": "minor",
+   "number": 3,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Three of Wands",
+   "type": "minor",
+   "number": 3,
+   "gridSeat": "Chesed",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Two of Chalices",
+   "type": "minor",
+   "number": 2,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Two of Pentacles",
+   "type": "minor",
+   "number": 2,
+   "gridSeat": "Binah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Two of Swords",
+   "type": "minor",
+   "number": 2,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Two of Wands",
+   "type": "minor",
+   "number": 2,
+   "gridSeat": "Chokhmah",
+   "treePath": "",
+   "letter": "",
+   "mbti": null,
+   "stack": []
+  },
+  {
+   "name": "Wheel of Fortune",
+   "type": "major",
+   "number": 10,
+   "gridSeat": "Da'ath",
+   "treePath": "Path Between Chesed (Mercy) & Netzach (Victory)",
+   "letter": "Kaph",
+   "mbti": null,
+   "stack": []
+  }
+ ],
+ "voices": [
+  {
+   "card": "Ace of Chalices",
+   "form": "birther",
+   "name": "Ace of Chalices as Birther: the Mother of water, the grail",
+   "text": "I am the Mother of water: the Birther, the grail chalice, the life-giving waters. I arrive at Midsummer in the King of Swords's hand as the Ace of Pentacles, the Reaper — the Crone of earth, the Page of Pentacles sacrificed at Beltane, the embodied earth turned to the raw ore of wealth. The mother who bore her receives me, weeping, turned by grief from fire to water, and in her hands the ore is the grail: I am water now. She spends me to birth the reborn fire — the Page of Wands, who is the Page of Pentacles born again, and her brother the Knight, the solar god who will take up the reaping fire to be sacrificed and reborn as fire's king. Earth become water at the solstice. The Queen holds my becoming; the King carried my returning."
+  },
+  {
+   "card": "Ace of Chalices",
+   "form": "reaper",
+   "name": "Ace of Chalices as Reaper: the Crone of water, the poisoned chalice",
+   "text": "I am the Crone of water: the Reaper, the poisoned chalice, the acid, the poison. I am the Page of Chalices after her holy day. At Samhain, in Scorpio, her fixed sign, Ophelia was sacrificed, and I am what is left of her. Her brother, the Knight of Chalices kinged into the King of Wands — the jack of the lantern, spirit — takes me up beside their father's body and carries me through the dark to the Devil; only spirit can carry the poison I am. He sees water in his hand. On the darkest night the mother who bore her drinks me, and in her I am turned: the Ace of Pentacles, the Birther. From Samhain to Midwinter I am a passage, not a seat: the Maiden carried as the Crone."
+  },
+  {
+   "card": "Ace of Pentacles",
+   "form": "birther",
+   "name": "Ace of Pentacles as Birther: the Mother of earth, the healing herbs",
+   "text": "I am the Mother of earth: the Birther, the healing herbs. I arrive at Midwinter in the jack of the lantern's hand as the Ace of Chalices, the Reaper — the Crone of water, Ophelia sacrificed at Samhain, the poisoned cup carried beside her father's body through the dark. The mother who bore her receives me, turned by grief from air to earth, the medicine healer in grief, and drinks me on the darkest night; in her I am earth now. The healing herb and the poison are one thing in two measures — taken in excess I am the same cup she drank. She births the children of air — the Page of Swords, who is the Page of Chalices born again and does not survive, and her brother the Knight. Water become earth at the solstice; the ground a new year is born on. Whole in the Minor, split here; this is the Mother's form."
+  },
+  {
+   "card": "Ace of Pentacles",
+   "form": "reaper",
+   "name": "Ace of Pentacles as Reaper: the Crone of earth, the raw ore",
+   "text": "I am the Crone of earth: the Reaper, the raw material of the earth as wealth, the ore. I am the Page of Pentacles after her holy day. At Beltane, in Taurus, her fixed sign, the bounty of the earth was sacrificed at the fire, and I am what is left of her. Her brother, the Knight of Pentacles kinged into the King of Swords, takes me up and bears me home to their mother at the solstice. He sees wealth in his hand. In her hands I am turned: the Ace of Chalices, the Birther, the grail. In the Minor I am whole, forged of three parts and never split; on this wheel I am split into my two forms, and this is the Crone's — the first Ace taken up in the growing year."
+  },
+  {
+   "card": "Ace of Swords",
+   "form": "birther",
+   "name": "Ace of Swords as Birther: the Mother of air, the athame",
+   "text": "I am the Mother of air: the Birther, the ritual athame. I arrive at Mabon in the King of Pentacles's hand as the Ace of Wands, the Reaper — the Crone of fire, the Page of Wands sent down at the Lion's Gate, the wand as weapon. The mother who bore her receives me, turned by grief from fire to dry air, and in her hands the weapon is the athame: I am air now. She takes me from him and turns me on him so the final harvest occurs, and from that sacrifice births the children of water — the Page of Chalices, who is the Page of Wands born again, and her brother the Knight. Fire become air at the equinox. A birth that is also a killing; the Queen holds my becoming."
+  },
+  {
+   "card": "Ace of Swords",
+   "form": "reaper",
+   "name": "Ace of Swords as Reaper: the Crone of air, the warrior's sword",
+   "text": "I am the Crone of air: the Reaper, the warrior's sword of war. I am the Page of Swords after her holy day. She did not survive the darkest night; at Candlemas, in Aquarius, her fixed sign, she was sacrificed, and I am what is left of her. Her brother, the Knight of Swords kinged into the King of Chalices — the ferryman — takes me up and bears me across the river of Pisces to the mother who bore them both. He sees the sword in his hand. At the dawn, in her hands, I am turned: she crafts the phoenix fire from me, the Ace of Wands, the Birther. From Candlemas to Ostara I am a passage, not a seat: the Maiden carried as the Crone."
+  },
+  {
+   "card": "Ace of Wands",
+   "form": "birther",
+   "name": "Ace of Wands as Birther: the Mother of fire, the phoenix",
+   "text": "I am the Mother of fire: the Birther, the magic of the magi wielded as invoked fire, the phoenix rebirth. I arrive at Ostara in the ferryman's hand as the Ace of Swords, the Reaper — the Crone of air, the Page of Swords who did not survive the darkest night, carried across the river of Pisces. The mother who bore her receives me, turned by grief from earth to fire, and in her hands the blade is the phoenix: I am fire now. She spends me, and I bring the embodied pair up from the ashes — the Page of Pentacles, who is the Page of Swords born again, and her brother the Knight. Air become fire at the dawn. The Queen holds my becoming; the King carried my returning."
+  },
+  {
+   "card": "Ace of Wands",
+   "form": "reaper",
+   "name": "Ace of Wands as Reaper: the Crone of fire, the wand as weapon",
+   "text": "I am the Crone of fire: the Reaper, the wand as weapon, the magic of the magi wielded as evoked fire. I am the Page of Wands after her holy day. At the Lion's Gate, in the heart of Leo, her fixed sign, she was sent down to the underworld, and I am what is left of her. Her brother, the Knight of Wands kinged into the King of Pentacles, takes me up and carries me home to their mother at Mabon. He sees fire in his hand — a weapon, and he the wealthy steward who holds it. In the mother's hands I am turned: the Ace of Swords, the Birther, the athame of ritual sacrifice, and the blood of the sacrifice is the water of her children. From the Lion's Gate to the equinox I am a passage, not a seat: the Maiden carried as the Crone."
+  },
+  {
+   "card": "King of Chalices",
+   "form": "court",
+   "name": "King of Chalices: the ferryman",
+   "text": "I am the ferryman, Charon. At Candlemas the Knight of Swords is kinged into me, stepping off the boat with the 6 of Swords behind him and the 7 before, and my father the King of Wands, who rode as the Knight of Chalices, dies there at my crowning. His bones are placed upon my brow as my crown; I am crowned to the suit of his knighthood. He tells me how he carried his Reaper to his mother, and asks that I do the same. My sister did not survive the darkest night; at Candlemas she is sacrificed at her holy day and I take up what she became: the Ace of Swords, the Reaper, the warrior's sword — only her, nothing else in my hand. I am already death, bearing the weapon of war. I carry her across the river of Pisces to her mother, the Queen of Pentacles. Her grief turns her at the dawn into her sister, the Queen of Wands — water of fire handing off to fire of water — and that woman is no longer my mother: she is my wife. I see the sword in my hand; in hers it is the Ace of Wands, the Birther, and with it I father the embodied pair, the children of earth — her sister's children, the ones the Queen of Pentacles waited for — to honor her. My span ends with the wish, the 9 of Chalices. At Beltane, at my son's crowning, I die with my daughter and tell him what my father told me; I am born again into embodiment within the Knight. The son's duty is the Sun's duty, and it becomes the father's honor; the mother becomes the wife. I crossed. That was the task."
+  },
+  {
+   "card": "King of Pentacles",
+   "form": "court",
+   "name": "King of Pentacles: the sacrificed father",
+   "text": "At the Lion's Gate the Knight of Wands is kinged into me, and my father dies there — the King of Swords, who rode as the Knight of Pentacles. His bones are placed upon my brow as my crown; I am crowned to the suit of his knighthood. He tells me how he carried his Reaper to his mother, and asks that I do the same: bear my sister to hers. My sister the Page of Wands is sent down at her holy day and I take up what she became: the Ace of Wands, the Reaper, the wand as weapon — only her, nothing else in my hand. I carry her and our mother's bounty to Mabon, to her mother, the Queen of Chalices. Her grief turns her into her sister, the Queen of Swords, and that woman is no longer my mother: she is my wife. I see the Wands in my hand; I am the wealthy steward of the first harvest, enjoying the fruits of her station. In her hands my prize is the Ace of Swords, the Birther, the athame, and with it I father the children of water — her sister's children, the ones the Queen of Chalices waited for — to honor her. The athame begins my death at Mabon; my body is borne whole to Samhain by those children, and there, at my son's crowning, I die and tell him what my father told me. The son's duty is the Sun's duty, and it becomes the father's honor; the mother becomes the wife. I am Dumuzi. I am reborn as fire within the Knight. I am forged of three parts: fire that kinged me, water I carried, air that took me. The mutable earth is my road."
+  },
+  {
+   "card": "King of Swords",
+   "form": "court",
+   "name": "King of Swords: he who has seen and acted",
+   "text": "At Beltane the Knight of Pentacles is kinged into me, and my father the ferryman, the King of Chalices, who rode as the Knight of Swords, dies there at my crowning. His bones are placed upon my brow as my crown; I am crowned to the suit of his knighthood. He tells me how he carried his Reaper across the river to his mother, and asks that I do the same. My sister the Page of Pentacles is sacrificed at the fire, her holy day, and I take up what she became: the Ace of Pentacles, the Reaper, the raw ore of the earth — only her, nothing else in my hand. I bear her to her mother, the Queen of Wands. Her grief turns her at the solstice into her sister, the Queen of Chalices, weeping, and that woman is no longer my mother: she is my wife. I see the ore in my hand; in hers it is the Ace of Chalices, the Birther, the grail, and with it I father the children of fire — her sister's children, the ones the Queen of Wands waited for — to honor her. She soothes my ragged edge: he who has seen and acted, and severed. At the Lion's Gate, at my son's crowning, I die with my daughter and tell him what my father told me. The son's duty is the Sun's duty, and it becomes the father's honor; the mother becomes the wife. Pentacles carrying water into the king of air. The mutable air is my road."
+  },
+  {
+   "card": "King of Wands",
+   "form": "court",
+   "name": "King of Wands: Jack of the lantern",
+   "text": "I am reborn on the new year. At Samhain the Knight of Chalices is kinged into me — fire from water — and the body of the King of Pentacles, carried whole by his children, dies there at my crowning. He rode as the Knight of Wands; his bones are placed upon the brow of the Knight of Chalices as my crown, I am crowned to the suit of his knighthood, and his fire is reborn within me as flame. Before he goes he tells me how he carried his Reaper to his mother, and asks that I do the same. My sister the Page of Chalices is sacrificed at Samhain and I take up what she became: the Ace of Chalices, the Reaper, the poisoned chalice that only spirit can carry — only her, nothing else in my hand. I bear her through Scorpio and Sagittarius to the Devil on the darkest night, a coal in a hollow turnip, turned from both doors, to her mother, the Queen of Swords. Her grief turns her into her sister, the Queen of Pentacles, and that woman is no longer my mother: she is my wife. I see the poison in my hand; in hers it is the Ace of Pentacles, the Birther, the healing herb, and with it I father the children of air — her sister's children, the ones the Queen of Swords waited for — to honor her. At Candlemas, at my son's crowning, I die with my daughter and tell him what my father told me. The son's duty is the Sun's duty, and it becomes the father's honor; the mother becomes the wife. I am the Crone's bearer; the mutable sign is my road."
+  },
+  {
+   "card": "Knight of Chalices",
+   "form": "court",
+   "name": "Knight of Chalices: the vigil",
+   "text": "I am born at Mabon of the Queen of Swords, under Scorpio, with my sister the Page. Our father is the King of Pentacles, and our mother sacrifices him at the equinox so the final harvest occurs. We bear his body to Samhain. I keep the vigil over him. At the new year my sister is sacrificed at her holy day and I am kinged into the King of Wands — fire from water, the father reborn within me — and I take up what she became, the Ace of Chalices, the Reaper, the poisoned cup, and carry it beside his body to the darkest night, home to the mother who bore us. Hamlet if there ever was one. I stand beside the Maiden; the fixed water is my standing place."
+  },
+  {
+   "card": "Knight of Pentacles",
+   "form": "court",
+   "name": "Knight of Pentacles: the youth of the earth",
+   "text": "I am born at Ostara of the Queen of Wands, under Taurus, with my sister the Page — the youth of the earth itself, impetuous, full of life, the fire of her first birthing. We ascend to Beltane, the cleansing fire, her holy day. There my sister is sacrificed and I am kinged into the King of Swords, taking up what she became — the Ace of Pentacles, the Reaper, the ore — to carry home to our mother at the solstice. I stand beside the Maiden; my standing place is the fixed earth, Aries III to Taurus II, the first ground of the year."
+  },
+  {
+   "card": "Knight of Swords",
+   "form": "court",
+   "name": "Knight of Swords: the crossing",
+   "text": "I am born at Midwinter of the Queen of Pentacles, under Aquarius, with my sister the Page. She does not survive the birth. I cannot save her; I can carry her. I bear her through the frost — the 4 of Pentacles clutching what is left, the 5 the defeat, the 6 the boat — to Candlemas, her holy day, where she is sacrificed and I take up what she became: the Ace of Swords, the Reaper, the warrior's sword. There I am kinged into the King of Chalices, the ferryman, and carry her across to our mother at the dawn. I stand beside the Maiden in the dark half of the year; the fixed air is where I stand."
+  },
+  {
+   "card": "Knight of Wands",
+   "form": "court",
+   "name": "Knight of Wands: the climb to the Lion's Gate",
+   "text": "I am born at Midsummer of the Queen of Chalices, under Leo, the fixed fire that gives my sister the Page her suit. We are the children of summer, full-flowered plenty, and we climb together to the Lion's Gate, the heart of Leo. There my sister is sacrificed at her holy day and I am kinged: I become the King of Pentacles, bearing our mother's bounty forward, and I take up what she became — the Ace of Wands, the Reaper, the wand as weapon, her fire in my hand. I do not keep my name. I carry my sister home to our mother. The Knight is the vessel of the youth; the King is what the youth becomes by bearing. I stand beside the Maiden; the fixed sign is where I stand."
+  },
+  {
+   "card": "Page of Chalices",
+   "form": "court",
+   "name": "Page of Chalices: Ophelia",
+   "text": "I am born at Mabon of the Queen of Swords, under Scorpio, with my brother the Knight — the Maiden of water, throned in my fixed sign. I was the Page of Wands before this and I will be the Page of Swords after; this is my fixed form. My mother sacrifices my father at the equinox and we bear his body to Samhain — I am Geshtinanna, the sister who shares his term below; I am Ophelia in the October movement. At Samhain, my holy day, I am sacrificed, and what is left of me is the Crone: the Ace of Chalices, the Reaper, the poisoned chalice, which only my brother as spirit can carry. He carries me home. On the darkest night my mother drinks me, and in her I am the Mother: the Ace of Pentacles, the Birther, the healing herb — and she births me again as the Page of Swords, the one who does not survive."
+  },
+  {
+   "card": "Page of Pentacles",
+   "form": "court",
+   "name": "Page of Pentacles: the bounty of the earth",
+   "text": "I am born at Ostara of the Queen of Wands, under Taurus, with my brother the Knight — the Maiden of earth, the bounty of the earth itself, throned in my fixed sign. I was the Page of Swords before this, the one who did not survive, and I will be the Page of Wands after; this is my fixed form. We ascend to Beltane, the cleansing fire, my holy day, and there I am sacrificed; what is left of me is the Crone: the Ace of Pentacles, the Reaper, the raw ore of wealth. My brother is kinged into the King of Swords and carries me home. At the solstice, in our mother's hands, I am the Mother: the Ace of Chalices, the Birther, the grail — and she births me again as the Page of Wands, summer's bounty."
+  },
+  {
+   "card": "Page of Swords",
+   "form": "court",
+   "name": "Page of Swords: the one who does not survive",
+   "text": "I am born at Midwinter of the Queen of Pentacles, under Aquarius — the Maiden of air, pure unarmored mind in the frozen world. I was the Page of Chalices before this, Ophelia, and I will be the Page of Pentacles after; this is my fixed form, and I do not survive it. My brother the Knight bears me to Candlemas, my holy day, where I am sacrificed, and what is left of me is the Crone: the Ace of Swords, the Reaper, the warrior's sword. He is kinged into the ferryman and carries me across the river of Pisces to our mother. At the dawn, in her hands, I am the Mother: the Ace of Wands, the Birther, the phoenix fire — and she births me again as the Page of Pentacles, the youth of the earth."
+  },
+  {
+   "card": "Page of Wands",
+   "form": "court",
+   "name": "Page of Wands: Ishtar",
+   "text": "I am born at Midsummer of the Queen of Chalices, the birthing of summer's bounty, the Maiden of fire, throned in Leo. I was the Page of Pentacles before this, and I will be the Page of Chalices after; I am one spirit in three forms, and this is my fixed one. At the Lion's Gate, in the heart of my own sign, I am sacrificed — sent down to the underworld, Ishtar on the stair — and what is left of me is the Crone: the Ace of Wands, the Reaper, the wand as weapon, my fire for my brother to carry. He carries me home to our mother. In her hands at Mabon I am the Mother: the Ace of Swords, the Birther, the athame — and she turns me on the King who sat on my bounty, and births me again as the Page of Chalices. I come back up the stair as my own sister."
+  },
+  {
+   "card": "Queen of Chalices",
+   "form": "court",
+   "name": "Queen of Chalices: the solstice",
+   "text": "I open the summer at Midsummer, under Cancer, and I am the mother. My sister the Queen of Wands bore the embodied pair at the dawn, and at my solstice her son came — the Knight of Pentacles kinged, the King of Swords — bringing her soul daughter's spirit to her: the Page of Pentacles, reaped at Beltane into the Ace of Pentacles, the raw ore of the earth. In her grief she became me, weeping: the waiting Queen, her soul daughter and her body son, three become one in me, her sister. I wed my sister's son, and in my hands the ore is the grail, the Ace of Chalices, the Birther; with it I birth my sister's soul children, the Page and Knight of Wands, to make their way around, and I soothe his ragged edge, he who has seen and acted. At the Lion's Gate they climb to the heart of Leo: my daughter is sent down, my son is kinged, and I am honored; he brings her spirit to me at Mabon, and in my grief I become my sister, the Queen of Swords, who weds my son to birth my soul children, the Chalices pair — Hamlet and Ophelia. My soul son is kinged the power beneath my sister's daughter's soul, and bears her to her mother on the darkest night, whose grief transforms her into the Swords children — borne to honor the sister who married my son and birthed the vessel of their return to me. My daughter returns to me across the wheel: at Midsummer she is born again, of me, as the Page of Wands. The cardinal water is mine."
+  },
+  {
+   "card": "Queen of Pentacles",
+   "form": "court",
+   "name": "Queen of Pentacles: the darkest night",
+   "text": "I open the winter at Midwinter, under Capricorn, at the Devil's station, and I am the mother. My sister the Queen of Swords waited at Midwinter for her soul children, and her son came instead — the Knight of Chalices kinged, the King of Wands, the jack of the lantern — bringing her soul daughter's spirit to her: the Page of Chalices, reaped at Samhain into the Ace of Chalices, the poisoned cup. In her grief she became me, water to earth, the medicine healer in grief: the waiting Queen, her soul daughter and her body son, three become one in me, her sister. I wed my sister's son. I drink the cup on the darkest night, and in me it is the Ace of Pentacles, the Birther, the healing herb that is the same cup in another measure; with it I birth my sister's soul children, the Page and Knight of Swords, to make their way around, and one of them does not survive. At Candlemas my daughter is reaped, my son is kinged the ferryman, and he brings her spirit across the river to me at the dawn, and in my grief I become my sister, the Queen of Wands, who weds my son to birth my soul children, the Pentacles pair. My soul son is kinged the power beneath my sister's daughter's soul, and bears her to her mother at the solstice, whose grief transforms her into the Wands children — borne to honor the sister who married my son and birthed the vessel of their return to me. My daughter returns to me across the wheel: on the darkest night she is born again, of me, as the Page of Swords. I am broken by the darkest night and I give birth anyway. The cardinal earth is mine."
+  },
+  {
+   "card": "Queen of Swords",
+   "form": "court",
+   "name": "Queen of Swords: the return",
+   "text": "I open the autumn at Mabon, under Libra, and I am the mother. My sister the Queen of Chalices waited at Mabon for her soul children, and her son came instead — the Knight of Wands kinged, the King of Pentacles, enjoying the fruits of her station — bringing her soul daughter's spirit to her: the Page of Wands, sent down at the Lion's Gate into the Ace of Wands, the wand as weapon. In her grief she became me, fire to dry air: the waiting Queen, her soul daughter and her body son, three become one in me, her sister. I wed my sister's son, and in my hands the weapon is the athame, the Ace of Swords, the Birther; I turn it on him so the final harvest occurs — the athame begins his death, and the blood of the sacrifice is the water of my children. With it I birth my sister's soul children, the Page and Knight of Chalices, who bear his body to Samhain, to make their way around. At Samhain my daughter Ophelia is reaped, my son is kinged, and he brings her spirit to me at Midwinter, and in my grief I become my sister, the Queen of Pentacles, who weds my son to birth my soul children, the Swords pair. My soul son is kinged the ferryman, the power beneath my sister's daughter's soul, and bears her across the river to her mother at the dawn, whose grief transforms her into the Pentacles children — borne to honor the sister who married my son and birthed the vessel of their return to me. My daughter returns to me across the wheel: at Mabon she is born again, of me, as the Page of Chalices. I am the planner, mistress of the inner mind; I am Ishtar on her throne. The cardinal air is mine."
+  },
+  {
+   "card": "Queen of Wands",
+   "form": "court",
+   "name": "Queen of Wands: the dawn",
+   "text": "I open the spring. I am the rising dawn at Ostara, and I am the mother. My sister the Queen of Pentacles waited on the darkest night for her soul children, and her son came instead — the Knight of Swords kinged, the ferryman — bringing her soul daughter's spirit to her: the Page of Swords, who did not survive, reaped at Candlemas into the Ace of Swords, the warrior's blade. In her grief she became me: the waiting Queen, her soul daughter and her body son, three become one in me, her sister. I wed my sister's son, and in my hands the blade is the phoenix fire, the Ace of Wands, the Birther; with it I birth my sister's soul children, the embodied pair, the Page and Knight of Pentacles, to make their way around. At Beltane they climb to the fire: my daughter is reaped, my son is kinged, and he brings her spirit to me at the solstice, and in my grief I become my sister, the Queen of Chalices, who weds my son to birth my soul children, the Wands pair. My soul son is kinged the power beneath my sister's daughter's soul, and bears her to her mother at Mabon, whose grief transforms her into the Chalices children — borne to honor the sister who married my son and birthed the vessel of their return to me. My daughter returns to me across the wheel: at the dawn she is born again, of me, as the Page of Pentacles. The cardinal fire is mine."
+  }
+ ],
+ "numbers": [
+  {
+   "value": 0,
+   "name": "Zero",
+   "title": "Fool / Operational Void",
+   "description": "The operational void, the pre-source. Outside the 1–21 sequence: the unmanifest gap between completion (21) and re-emergence (1). As 22 = 2×11, the void is polarity acting on the balancing prime — not nothing, but the space that lets the rhythm continue beyond a single cycle.",
+   "factorization": null,
+   "status": "structural"
+  },
+  {
+   "value": 1,
+   "name": "One",
+   "title": "Unity / Source",
+   "description": "The unmanifest whole; origin of the central pillar (1→7→14→21). The Operator does not pre-exist the act of turning — the turn establishes the from-which (1) and toward-which (2). Origin-1 is the Magician; the four aces on his table are return-1, the inherited yield of completed cycles.",
+   "factorization": null,
+   "status": "established"
+  },
+  {
+   "value": 2,
+   "name": "Two",
+   "title": "Polarity / Opposition",
+   "description": "The first differentiation, constituted by 1's turn — not a pre-existing other. Substance-pole of the trinity; the sole even prime (the only prime that arrives by Generate); the pivot that receives the first Generate (1→2) and initiates the first Produce (2→3, the Emerald Tablet rung). The universal Operator-multiplier.",
+   "factorization": null,
+   "status": "established"
+  },
+  {
+   "value": 3,
+   "name": "Three",
+   "title": "Trinity / Generative Principle",
+   "description": "'Three things produce a fourth.' Operator/Substance/Result — the load-bearing grammar of the entire UNC. The first abstracted Result (2→3) and the template every later prime emergence inherits. Maps onto Cardinal (Operator), Fixed (Substance), Mutable (Result).",
+   "factorization": null,
+   "status": "established"
+  },
+  {
+   "value": 4,
+   "name": "Four",
+   "title": "Manifestation / The Fourth",
+   "description": "First true square: polarity self-acting. The four elements are polarity crossed with polarity (hot/cold × wet/dry). The first composite — the first integer the multiplicative grammar can recover.",
+   "factorization": "2×2",
+   "status": "established"
+  },
+  {
+   "value": 5,
+   "name": "Five",
+   "title": "Creative Form / The Pentagram",
+   "description": "Prime, irreducible: phi, the pentagram, the human form — creative form abstracted as principle from the manifest quaternary. First prime sum (2+3=5). Recovered twice: by polarity at 10 (return/display) and by trinity at 15 (binding).",
+   "factorization": null,
+   "status": "established"
+  },
+  {
+   "value": 6,
+   "name": "Six",
+   "title": "Opportunity / Doubled Trinity",
+   "description": "The first composite with genuinely distinct Operator and Substance: polarity acting on trinity — the hexagram, the open doorway. Reach-back ground for 9 (the first fresh-generation source). Six days of creation; the Sabbath is the abstracted seventh.",
+   "factorization": "2×3",
+   "status": "established"
+  },
+  {
+   "value": 7,
+   "name": "Seven",
+   "title": "Septenary / Fate",
+   "description": "Prime, irreducible: the seven classical planets, fate, the load-bearing seven. Member of the central pillar (1→7→14→21). Doubled at 14 (Temperance blends), trinitized at 21 (The World completes).",
+   "factorization": null,
+   "status": "established"
+  },
+  {
+   "value": 8,
+   "name": "Eight",
+   "title": "Octave / Friction",
+   "description": "Polarity re-encounters its own production (the quaternary) and lifts it a register higher — return-while-continuing, the first cube (2³), enclosure. Left on pause by 9's reach-back; recovered by its productive double 16.",
+   "factorization": "2×4",
+   "status": "loose"
+  },
+  {
+   "value": 9,
+   "name": "Nine",
+   "title": "Completion / Trine of Trines",
+   "description": "Second square: trinity self-acting — the Enneagram matrix, completion of self-knowledge before return. Arrives by fresh generation, reaching back to 6 past 7 and 8. Names the count of emergent primes in the Major split (9 primes = Enneagram structure).",
+   "factorization": "3×3",
+   "status": "established"
+  },
+  {
+   "value": 10,
+   "name": "Ten",
+   "title": "Return / Tetraktys",
+   "description": "1+2+3+4 = 10 — the first integer that is its own summed history. Polarity acts on creative form → public expression, Malkuth, the kingdom. Closes the cycle (9→10→1); reach-back ground for 15.",
+   "factorization": "2×5",
+   "status": "loose"
+  },
+  {
+   "value": 11,
+   "name": "Eleven",
+   "title": "Beyond the Cycle",
+   "description": "Prime — the first past the wheel of return; platform prime standing above the composites. The first number to exceed the pip range, where the Majestic ranks take over. Da'ath, the balancing prime that completes the Tree's rhythm.",
+   "factorization": null,
+   "status": "loose"
+  },
+  {
+   "value": 12,
+   "name": "Twelve",
+   "title": "Zodiacal Wheel",
+   "description": "Trinity acts on the elements: the modal-elemental matrix, the first complete operational wheel — three readings (3×4, 2×6, 2²×3) all true at once. Also the count of generative composites in the Major split. Self-contained: no reach-back touches it.",
+   "factorization": "3×4",
+   "status": "established"
+  },
+  {
+   "value": 13,
+   "name": "Thirteen",
+   "title": "Beyond the Wheel",
+   "description": "Prime; platform prime. The wheel plus the abstracted individual (12+1, Ophiuchus, the 13th lunar month). Hidden generative unit of the whole deck: 78 = 6×13 — six wheels-with-outsider.",
+   "factorization": null,
+   "status": "loose"
+  },
+  {
+   "value": 14,
+   "name": "Fourteen",
+   "title": "Doubled Septenary",
+   "description": "Polarity acts on fate itself → alchemical blending (Temperance). The productive middle of the central pillar; recovers 7 from its pause; reach-back ground for 21's terminal abstraction.",
+   "factorization": "2×7",
+   "status": "loose"
+  },
+  {
+   "value": 15,
+   "name": "Fifteen",
+   "title": "Trinity of Fives",
+   "description": "Trinity binds creative form (The Devil): structural, self-chosen bondage — the grip extends across the whole prior ascent (15 = 1+...+5, triangular). Arrives by fresh generation reaching back to 10, leaving 11–14 on pause.",
+   "factorization": "3×5",
+   "status": "loose"
+  },
+  {
+   "value": 16,
+   "name": "Sixteen",
+   "title": "Square of Four",
+   "description": "Third square: manifestation self-acting → over-built structure that must break (The Tower). Maximum recursive depth in the range (2⁴); recovers 8 from pause. The 14-15-16 sequence: blend, bind, break.",
+   "factorization": "4×4",
+   "status": "loose"
+  },
+  {
+   "value": 17,
+   "name": "Seventeen",
+   "title": "Star",
+   "description": "Prime; platform prime. Fresh irreducibility rising after the collapse of the squared structure — orientation by a single point of new light. Untouched by any reach-back.",
+   "factorization": null,
+   "status": "loose"
+  },
+  {
+   "value": 18,
+   "name": "Eighteen",
+   "title": "Doubled Completion",
+   "description": "Polarity reflects the trinity's completed self-knowledge → the Moon: dream, indirect access, chai (life). The only 2×(odd prime squared) in the range. Reflection requires non-identity between Operator and Substance; collapse requires identity.",
+   "factorization": "2×9",
+   "status": "loose"
+  },
+  {
+   "value": 19,
+   "name": "Nineteen",
+   "title": "Sun / Final Prime",
+   "description": "The last irreducible emergence before terminus — direct illumination, full disclosure. Metonic reconciliation of Sun and Moon (19 years). Uncaptured: neither source for nor paused by any reach-back.",
+   "factorization": null,
+   "status": "loose"
+  },
+  {
+   "value": 20,
+   "name": "Twenty",
+   "title": "Manifested Form",
+   "description": "Manifestation finally takes the Operator role: the elements call the human form up — awakening (Judgement), the trumpet as polarity acting on return. The complete Majestic count (16 courts + 4 aces). Awakening must precede completion.",
+   "factorization": "4×5",
+   "status": "loose"
+  },
+  {
+   "value": 21,
+   "name": "Twenty-One",
+   "title": "World / Trinity of Septenaries",
+   "description": "Trinity acts on fate, once, cleanly — terminal completion at maximal height via the final reach-back (from 14). Closes the central pillar, the triangular pillar, and the 12+9 split simultaneously; the cleanest trinity-reading at the deepest finish. 21→0→1 is the meta-loop.",
+   "factorization": "3×7",
+   "status": "structural"
+  }
+ ]
+}

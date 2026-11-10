@@ -1,6 +1,6 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { runGroundedAgent, runReasoningAgent, toAnthropicTools } from "./agent.ts";
+import { GATE_NUDGE, runGatedAgent, runGroundedAgent, runReasoningAgent, toAnthropicTools } from "./agent.ts";
 import { _setClient } from "./llm.ts";
 
 afterEach(() => { _setClient(null); });
@@ -176,4 +176,75 @@ for (const [why, responses, byName] of ungrounded) {
 
 test("no permitted tools means no reasoning path, not an unaided run", async () => {
   await assert.rejects(() => runGroundedAgent("s", "u", [], { async run() { return ""; } }), /no reasoning tools/);
+});
+
+const GATE = { opening: "RANKS-1-3", remainder: "THE-REST", required: { name: "reason_explore", args: { symbol: "The Tower" } } };
+const gateTools = toAnthropicTools([{ name: "reason_explore", inputSchema: {} }]);
+const text = (t: string) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t }] });
+const call = (id: string) => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id, name: "reason_explore", input: { symbol: "Mars" } }] });
+
+test("gate: the first three ranks are read with no tools on the request", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), call("t1"), text("FINAL")]);
+  _setClient(client);
+  await runGatedAgent("s", GATE, gateTools, { async run() { return "frame"; } });
+  assert.equal(calls[0].tools, undefined);
+  assert.equal(calls[0].messages[0].content, "RANKS-1-3");
+});
+
+test("gate: the tools open with the rest of the dossier, after the read", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), call("t1"), text("FINAL")]);
+  _setClient(client);
+  const out = await runGatedAgent("s", GATE, gateTools, { async run() { return "frame"; } });
+  assert.equal(out, "FINAL");
+  assert.equal(calls[1].tools.length, 1);
+  assert.equal(calls[1].messages[2].content, "THE-REST");
+  assert.equal(calls[1].tool_choice, undefined, "a forced tool choice is rejected by later Fable models");
+});
+
+test("gate: a reading written with no call is not kept; the model is told to call first", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), text("TOO-SOON"), call("t1"), text("FINAL")]);
+  _setClient(client);
+  const ran: string[] = [];
+  const out = await runGatedAgent("s", GATE, gateTools, { async run(n) { ran.push(n); return "frame"; } });
+  assert.equal(out, "FINAL");
+  assert.deepEqual(ran, ["reason_explore"]);
+  assert.equal(calls[2].messages[4].content, GATE_NUDGE);
+});
+
+test("gate: if the model still will not call, the harness makes the required call", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), text("NO"), text("STILL-NO"), text("FINAL")]);
+  _setClient(client);
+  const ran: any[] = [];
+  const out = await runGatedAgent("s", GATE, gateTools, { async run(n, a) { ran.push([n, a]); return "THE-FRAME"; } });
+  assert.equal(out, "FINAL");
+  assert.deepEqual(ran, [["reason_explore", { symbol: "The Tower" }]]);
+  assert.match(calls[3].messages[6].content, /THE-FRAME/);
+});
+
+test("gate: once a call has run, the next text is the reading", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), call("t1"), text("DONE")]);
+  _setClient(client);
+  assert.equal(await runGatedAgent("s", GATE, gateTools, { async run() { return "f"; } }), "DONE");
+  assert.equal(calls.length, 3);
+});
+
+test("gate: a refusal during the read throws so the caller can degrade", async () => {
+  const { client } = fakeClient([{ stop_reason: "refusal", content: [] }]);
+  _setClient(client);
+  await assert.rejects(runGatedAgent("s", GATE, gateTools, { async run() { return ""; } }), /declined/);
+});
+
+test("gate: a required call that fails throws rather than writing ungated", async () => {
+  const { client } = fakeClient([text("NOTE"), text("NO"), text("NO")]);
+  _setClient(client);
+  await assert.rejects(runGatedAgent("s", GATE, gateTools, { async run() { throw new Error("engine down"); } }), /engine down/);
+});
+
+test("gate: runGroundedAgent carries the gate and still reports grounding", async () => {
+  const verify = { stop_reason: "tool_use", content: [{ type: "tool_use", id: "v", name: "reason_verify", input: { exploration_id: "e1" } }] };
+  const { client, calls } = fakeClient([text("NOTE"), verify, text("FINAL")]);
+  _setClient(client);
+  const r = await runGroundedAgent("s", "unused", gateTools, { async run() { return JSON.stringify({ permission: "granted" }); } }, 4, 8, GATE);
+  assert.deepEqual(r, { text: "FINAL", grounded: true });
+  assert.equal(calls[0].messages[0].content, "RANKS-1-3");
 });

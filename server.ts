@@ -7,12 +7,14 @@ import { fileURLToPath } from "url";
 import { createHash } from "node:crypto";
 import multer from "multer";
 import { callFable } from "./server/llm.ts";
-import { getAstroContext, getCardContext } from "./server/astroContext.ts";
-import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt } from "./server/prompts.ts";
+import { getAstroContext, getChartOverlay, getRisingPoint } from "./server/astroContext.ts";
+import { enforceChartGate, flagChartBodies, occupantsOf, renderCompany, rewriteRequest } from "./server/chartGate.ts";
+import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt, isAtomicSpread } from "./server/prompts.ts";
+import { buildDossier, DOSSIER_VERSION } from "./server/dossier.ts";
 import { getPersonaForCard } from "./server/persona.ts";
-import { runGroundedAgent } from "./server/agent.ts";
+import { runGroundedAgent, type ReadGate } from "./server/agent.ts";
 import {
-  ALLOWED_REASON_TOOLS, REASONING_HINT, ensureReporeason, initReporeason, reporeasonReady,
+  ALLOWED_REASON_TOOLS, GATED_REASONING_NOTE, REASONING_HINT, ensureReporeason, initReporeason, reporeasonReady,
   reporeasonRunner, reporeasonTools,
 } from "./server/reporeason.ts";
 import { initMani, maniReady, maniAttune, profileForCard } from "./server/mani.ts";
@@ -36,13 +38,14 @@ function clampStr(v: unknown, max = 2000): string {
  * reason_verify granted the result (used to decide caching).
  */
 async function interpret(
-  system: string, user: string, wantReasoning: boolean,
+  system: string, user: string, wantReasoning: boolean, gate?: ReadGate,
 ): Promise<{ text: string; reasoned: boolean }> {
   if (wantReasoning) await ensureReporeason();
   if (wantReasoning && process.env.ENABLE_REPOREASON === "true" && reporeasonReady()) {
     try {
       const tools = reporeasonTools().filter((t) => ALLOWED_REASON_TOOLS.has(t.name));
-      const { text, grounded } = await runGroundedAgent(system + REASONING_HINT, user, tools, reporeasonRunner());
+      const hint = gate ? REASONING_HINT + GATED_REASONING_NOTE : REASONING_HINT;
+      const { text, grounded } = await runGroundedAgent(system + hint, user, tools, reporeasonRunner(), undefined, undefined, gate);
       return { text, reasoned: grounded };
     } catch (err) {
       console.error("[AI] reporeason agent failed; falling back to single-shot:", err);
@@ -247,7 +250,7 @@ async function startServer() {
 
       // Reasoning vs single-shot produce different results — key the cache on the mode too.
       const promptHash = createHash("sha256")
-        .update(JSON.stringify({ card, reading, graphContext: safeGraph, wantReasoning }))
+        .update(JSON.stringify({ card, reading, graphContext: safeGraph, wantReasoning, dossier: DOSSIER_VERSION }))
         .digest("hex").slice(0, 32);
       const cacheKey = `${promptHash}-${today}`;
 
@@ -255,7 +258,6 @@ async function startServer() {
       if (_cardInsightCache.has(cacheKey)) {
         result = _cardInsightCache.get(cacheKey)!;
       } else {
-        const astro = await getCardContext(cardName);
         // Mani attune enrichment (best-effort; "" when disabled/unreachable).
         let mani = "";
         if (maniReady()) {
@@ -270,10 +272,23 @@ async function startServer() {
         // The card's Persona skill (Major/Majestic/Minor) is injected into the
         // system prompt so the model interprets AS that card.
         const persona = getPersonaForCard(cardName);
-        const { system, user } = buildDeepPrompt(card, reading, safeGraph, astro, mani, gm?.meaning || "", persona);
-        const r = await interpret(system, user, wantReasoning);
-        result = r.text;
-        if (r.reasoned) cacheInsight(cacheKey, result); // only cache successful reasoning
+        // The dossier is the reading's material; the chart reaches a card only through it.
+        const text = { composition: gm?.meaning, correspondences: safeGraph, traditional: card?.card?.generalMeaning };
+        const dossier = buildDossier(cardName, (await getRisingPoint()) ?? undefined, text);
+        const overlay = await getChartOverlay();
+        const company = occupantsOf(cardName, overlay);
+        const { system, user, gate } = buildDeepPrompt(card, reading, dossier, { mani, persona, company: renderCompany(company) }, text);
+        const required = { name: "reason_explore", args: { symbol: cardName } };
+        const r = await interpret(system, user, wantReasoning, gate && { ...gate, required });
+        const checked = await enforceChartGate(
+          r.text,
+          (t) => flagChartBodies(t, overlay, company),
+          (flags) => callFable(system, rewriteRequest(user, r.text, flags)),
+        );
+        if (checked.flagged.length) console.warn(`[chart gate] ${cardName}: still flagged after retry:`, checked.flagged);
+        result = checked.text;
+        // Only cache a reasoned reading the check passed untouched: verify granted that text.
+        if (r.reasoned && !checked.rewritten && !checked.flagged.length) cacheInsight(cacheKey, result);
       }
       // Independent per-card summary — context for the whole-spread Oracle synthesis.
       let summary = "";
@@ -294,7 +309,8 @@ async function startServer() {
     try {
       const { reading } = req.body;
       const wantReasoning = req.body.extraReasoning === true;
-      const astro = await getAstroContext();
+      // The Oracle reads the card reads. Only the seven-card atomic spread keeps its transit source.
+      const astro = isAtomicSpread(reading) ? await getAstroContext() : "";
       let mani = "";
       if (maniReady()) {
         const q = `Whole-reading Oracle synthesis. Question: ${reading?.question || "(none)"}. `

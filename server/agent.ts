@@ -20,12 +20,52 @@ export function toAnthropicTools(mcpTools: any[]): AnthropicTool[] {
   }));
 }
 
+/**
+ * The repo-reason gate. The first three ranks are read with no tools on the request, the tools
+ * open with the rest of the dossier, and at least one call runs before the interpretation is kept.
+ * `required` is what the harness runs itself if the model will not make a call. The loop enforces
+ * this instead of `tool_choice`, because the later Fable models reject a forced tool choice.
+ */
+export interface ReadGate {
+  opening: string; remainder: string;
+  required: { name: string; args: any };
+}
+
+export const GATE_NUDGE =
+  "Make at least one reasoning tool call now, before writing the interpretation.";
+
 export async function runReasoningAgent(
   system: string, user: string, tools: AnthropicTool[], runner: ToolRunner,
   maxIters = 4, maxToolCalls = 8,
 ): Promise<string> {
-  const messages: any[] = [{ role: "user", content: user }];
+  return reasonLoop(system, [{ role: "user", content: user }], tools, runner, maxIters, maxToolCalls);
+}
+
+/** Read the opening ranks with the tools withheld, then reason and interpret with them open. */
+export async function runGatedAgent(
+  system: string, gate: ReadGate, tools: AnthropicTool[], runner: ToolRunner,
+  maxIters = 4, maxToolCalls = 8,
+): Promise<string> {
+  const messages: any[] = [{ role: "user", content: gate.opening }];
+  const read: any = await client().messages.create({
+    model: FABLE_MODEL,
+    max_tokens: MAX_TOKENS,
+    output_config: { effort: EFFORT },
+    system,
+    messages,
+  } as any);
+  if (read.stop_reason === "refusal") throw new Error("Claude declined during reasoning");
+  messages.push({ role: "assistant", content: read.content });
+  messages.push({ role: "user", content: gate.remainder });
+  return reasonLoop(system, messages, tools, runner, maxIters, maxToolCalls, gate.required);
+}
+
+async function reasonLoop(
+  system: string, messages: any[], tools: AnthropicTool[], runner: ToolRunner,
+  maxIters: number, maxToolCalls: number, required?: ReadGate["required"],
+): Promise<string> {
   let toolCalls = 0;
+  let nudged = false;
 
   for (let i = 0; i < maxIters; i++) {
     const resp: any = await client().messages.create({
@@ -42,7 +82,17 @@ export async function runReasoningAgent(
     messages.push({ role: "assistant", content: resp.content });
     const toolUses = (resp.content || []).filter((b: any) => b?.type === "tool_use");
     if (resp.stop_reason !== "tool_use" || toolUses.length === 0) {
-      return textOf(resp.content);
+      if (!required || toolCalls > 0) return textOf(resp.content);
+      if (!nudged) {
+        nudged = true;
+        messages.push({ role: "user", content: GATE_NUDGE });
+        continue;
+      }
+      toolCalls++;
+      console.log(`[agent] gate ran the required call itself: ${required.name}`);
+      const frame = await runner.run(required.name, required.args);
+      messages.push({ role: "user", content: `The required reasoning call was made for you. Its result:\n${frame}\n\nNow write the interpretation.` });
+      continue;
     }
 
     const results: any[] = [];
@@ -97,7 +147,7 @@ function verifyGranted(result: string): boolean {
  */
 export async function runGroundedAgent(
   system: string, user: string, tools: AnthropicTool[], runner: ToolRunner,
-  maxIters = 4, maxToolCalls = 8,
+  maxIters = 4, maxToolCalls = 8, gate?: ReadGate,
 ): Promise<{ text: string; grounded: boolean }> {
   if (tools.length === 0) throw new Error("no reasoning tools available");
   const verdicts = new Map<string, boolean>();    // exploration id -> its latest verdict
@@ -114,7 +164,9 @@ export async function runGroundedAgent(
       if (name === "reason_verify") verdicts.set(String(args?.exploration_id ?? ""), false);
     },
   };
-  const text = await runReasoningAgent(system, user, tools, watching, maxIters, maxToolCalls);
+  const text = gate
+    ? await runGatedAgent(system, gate, tools, watching, maxIters, maxToolCalls)
+    : await runReasoningAgent(system, user, tools, watching, maxIters, maxToolCalls);
   const grounded = verdicts.size > 0 && [...verdicts.values()].every(Boolean);
   return { text, grounded };
 }
