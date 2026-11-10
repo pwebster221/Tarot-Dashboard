@@ -88,6 +88,12 @@ test("the Home line's silhouette is not a chart statement", () => {
   assert.deepEqual(flagChartBodies("Relayed through your second house by Inanna.", overlay, []), []);
 });
 
+test("an allowed occupant cannot be given a sign it is not in", () => {
+  assert.deepEqual(flagChartBodies("Your Saturn is in Aquarius.", overlay, devil), ["Your Saturn is in Aquarius"]);
+  assert.deepEqual(flagChartBodies("Natal Sun in Leo glows.", overlay, devil), ["Natal Sun in Leo"]);
+  assert.deepEqual(flagChartBodies("Your Saturn is in Capricorn.", overlay, devil), []);
+});
+
 test("the querent's angles are not available to a card", () => {
   assert.deepEqual(flagChartBodies("Your Ascendant colors this.", overlay, []), ["Your Ascendant"]);
   assert.deepEqual(flagChartBodies("Your rising dread is the point.", overlay, []), []);

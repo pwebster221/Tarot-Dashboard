@@ -65,6 +65,11 @@ export function flagChartBodies(text: string, overlay: any, allowed: Occupant[])
     const source: ChartSource = /^(natal|your)$/i.test(m[1]) ? "natal" : "transit";
     if (!isAllowed(m[2], source)) flags.add(m[0]);
   }
+  for (const m of text.matchAll(new RegExp(`\\b(natal|your|transiting|today's|current)\\s+(?:the\\s+)?(${names})\\s+(?:is\\s+)?(?:in|through)\\s+(?:your\\s+)?(${SIGNS.join("|")})\\b`, "gi"))) {
+    const source: ChartSource = /^(natal|your)$/i.test(m[1]) ? "natal" : "transit";
+    const same = (o: Occupant) => o.source === source && o.body.toLowerCase() === m[2].toLowerCase();
+    if (allowed.some(same) && !allowed.some((o) => same(o) && o.sign.toLowerCase() === m[3].toLowerCase())) flags.add(m[0]);
+  }
   for (const m of text.matchAll(new RegExp(`\\b(${names})\\s+(?:is\\s+)?(?:in|through)\\s+(?:your\\s+)?(${SIGNS.join("|")})\\b`, "gi"))) {
     const here = placed.filter((p) => p.body.toLowerCase() === m[1].toLowerCase() && signAt(p.lon).toLowerCase() === m[2].toLowerCase());
     if (here.length && !here.some((p) => isAllowed(p.body, p.source))) flags.add(m[0]);
