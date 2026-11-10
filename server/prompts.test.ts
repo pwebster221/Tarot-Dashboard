@@ -137,3 +137,11 @@ test("only a seven-card atomic spread keeps the chart for the Oracle", () => {
   assert.equal(isAtomicSpread({ type: "Atomic Seven", drawnCards: [{}] }), false);
   assert.equal(isAtomicSpread({ type: "Celtic Cross", drawnCards: seven }), false);
 });
+
+test("a card outside the 78 is not labeled with an arcana", () => {
+  const custom = { card: { name: "The Gardener", generalMeaning: "TRAD" }, position: { name: "P", description: "D" }, isReversed: false };
+  const p = buildDeepPrompt(custom, gateReading, null);
+  assert.match(p.user, /\*\*Card:\*\* The Gardener\n/);
+  assert.doesNotMatch(p.user, /\(Minor\)/);
+  assert.equal(p.gate, undefined);
+});

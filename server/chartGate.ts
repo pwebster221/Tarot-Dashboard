@@ -69,6 +69,9 @@ export function flagChartBodies(text: string, overlay: any, allowed: Occupant[])
     const here = placed.filter((p) => p.body.toLowerCase() === m[1].toLowerCase() && signAt(p.lon).toLowerCase() === m[2].toLowerCase());
     if (here.length && !here.some((p) => isAllowed(p.body, p.source))) flags.add(m[0]);
   }
+  for (const m of text.matchAll(new RegExp(`\\b(${names})\\s+(?:is\\s+)?in\\s+(?:your|the)\\s+(?:\\w+)\\s+house\\b`, "gi"))) {
+    if (!isAllowed(m[1], "natal")) flags.add(m[0]);
+  }
   for (const m of text.matchAll(ANGLES)) flags.add(m[0]);
   return [...flags];
 }

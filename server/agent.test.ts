@@ -248,3 +248,25 @@ test("gate: runGroundedAgent carries the gate and still reports grounding", asyn
   assert.deepEqual(r, { text: "FINAL", grounded: true });
   assert.equal(calls[0].messages[0].content, "RANKS-1-3");
 });
+
+test("gate: a tool call that throws does not satisfy the gate", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), call("t1"), text("WRITTEN-EARLY"), call("t2"), text("FINAL")]);
+  _setClient(client);
+  let n = 0;
+  const out = await runGatedAgent("s", GATE, gateTools, { async run() { if (n++ === 0) throw new Error("boom"); return "frame"; } }, 5);
+  assert.equal(out, "FINAL");
+  assert.equal(n, 2);
+  assert.equal(calls.length, 5);
+});
+
+test("gate: if the budget ends with no call returned, the required call runs before the final answer", async () => {
+  const { client, calls } = fakeClient([text("NOTE"), call("t1"), call("t2"), text("FINAL")]);
+  _setClient(client);
+  const ran: string[] = [];
+  const out = await runGatedAgent("s", GATE, gateTools, {
+    async run(_n, a) { if (a?.symbol === "Mars") { ran.push("model"); throw new Error("boom"); } ran.push("required"); return "THE-FRAME"; },
+  }, 2, 8);
+  assert.equal(out, "FINAL");
+  assert.deepEqual(ran, ["model", "model", "required"]);
+  assert.equal(calls.at(-1).tools, undefined);
+});

@@ -76,6 +76,17 @@ test("body-in-sign matches whatever the casing", () => {
   assert.deepEqual(flagChartBodies("saturn in capricorn holds it.", overlay, devil), []);
 });
 
+test("a body placed in a house is a chart statement", () => {
+  assert.deepEqual(flagChartBodies("Saturn in your eighth house brings closure.", overlay, []), ["Saturn in your eighth house"]);
+  assert.deepEqual(flagChartBodies("Mars in the first house pushes.", overlay, []), ["Mars in the first house"]);
+  assert.deepEqual(flagChartBodies("Saturn in your eighth house stands inside this card.", overlay, devil), []);
+});
+
+test("the Home line's silhouette is not a chart statement", () => {
+  assert.deepEqual(flagChartBodies("Uranus stands as the modern silhouette of this house.", overlay, []), []);
+  assert.deepEqual(flagChartBodies("Relayed through your second house by Inanna.", overlay, []), []);
+});
+
 test("the querent's angles are not available to a card", () => {
   assert.deepEqual(flagChartBodies("Your Ascendant colors this.", overlay, []), ["Your Ascendant"]);
   assert.deepEqual(flagChartBodies("Your rising dread is the point.", overlay, []), []);

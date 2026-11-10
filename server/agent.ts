@@ -65,7 +65,15 @@ async function reasonLoop(
   maxIters: number, maxToolCalls: number, required?: ReadGate["required"],
 ): Promise<string> {
   let toolCalls = 0;
+  let succeeded = 0;   // budget counts attempts; the gate counts calls that actually returned
   let nudged = false;
+
+  const runRequired = async (spec: ReadGate["required"]) => {
+    console.log(`[agent] gate ran the required call itself: ${spec.name}`);
+    const frame = await runner.run(spec.name, spec.args);
+    succeeded++;
+    return `The required reasoning call was made for you. Its result:\n${frame}\n\nNow write the interpretation.`;
+  };
 
   for (let i = 0; i < maxIters; i++) {
     const resp: any = await client().messages.create({
@@ -82,16 +90,14 @@ async function reasonLoop(
     messages.push({ role: "assistant", content: resp.content });
     const toolUses = (resp.content || []).filter((b: any) => b?.type === "tool_use");
     if (resp.stop_reason !== "tool_use" || toolUses.length === 0) {
-      if (!required || toolCalls > 0) return textOf(resp.content);
+      if (!required || succeeded > 0) return textOf(resp.content);
       if (!nudged) {
         nudged = true;
         messages.push({ role: "user", content: GATE_NUDGE });
         continue;
       }
       toolCalls++;
-      console.log(`[agent] gate ran the required call itself: ${required.name}`);
-      const frame = await runner.run(required.name, required.args);
-      messages.push({ role: "user", content: `The required reasoning call was made for you. Its result:\n${frame}\n\nNow write the interpretation.` });
+      messages.push({ role: "user", content: await runRequired(required) });
       continue;
     }
 
@@ -106,6 +112,7 @@ async function reasonLoop(
         try {
           console.log(`[agent] tool call ${toolCalls}/${maxToolCalls}: ${tu.name}`);
           result = await runner.run(tu.name, tu.input);
+          succeeded++;
         } catch (err: any) {
           result = `tool error: ${err.message}`;
         }
@@ -115,6 +122,9 @@ async function reasonLoop(
     messages.push({ role: "user", content: results });
     if (toolCalls >= maxToolCalls) break;
   }
+
+  // Budget spent with nothing returned: the gate still needs its call before anything is written.
+  if (required && succeeded === 0) messages.push({ role: "user", content: await runRequired(required) });
 
   // Forced final answer with tools withheld.
   const final: any = await client().messages.create({

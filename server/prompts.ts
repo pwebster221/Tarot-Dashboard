@@ -60,7 +60,7 @@ const GATE_RANK = 3;
 const CHARGES: Record<Arcana, string> = { Minor: MINOR_CHARGE, Majestic: MAJESTIC_CHARGE, Major: MAJOR_CHARGE };
 
 /** The shared frame. What differs by arcana is the charge and the dossier's ranks. */
-function arcanaPrompt(card: any, reading: any, dossier: Dossier, kit: CardKit): Prompt {
+function arcanaPrompt(card: any, reading: any, dossier: Dossier, kit: CardKit, known = true): Prompt {
   const base = `${READER_SYSTEM}\n\n${CHARGES[dossier.arcana]}`;
   const persona = kit.persona?.trim();
   const system = persona
@@ -73,7 +73,7 @@ Provide a "Deep Interpretation" for the following card drawn in a reading.
 **Querent:** ${reading.querent}
 **Question:** ${reading.question}
 **Position in Spread:** ${card.position.name} - ${card.position.description}
-**Card:** ${dossier.card} (${dossier.arcana})
+**Card:** ${known ? `${dossier.card} (${dossier.arcana})` : dossier.card}
 **Orientation:** ${card.isReversed ? "Reversed" : "Upright"}
 ${specific ? `**Reader's note for this position:** ${specific}\n` : ""}`;
   const after = `${kit.company || ""}${maniSection(kit.mani || "")}`;
@@ -106,7 +106,7 @@ export function buildDeepPrompt(card: any, reading: any, dossier: Dossier | null
     version: DOSSIER_VERSION, card: card.card.name, arcana: "Minor",
     sections: [{ rank: 1, title: "Meaning", source: "as given", lines: [text.traditional || card.card.generalMeaning || ""] }],
   };
-  const { user } = arcanaPrompt(card, reading, fallback, kit);
+  const { user } = arcanaPrompt(card, reading, fallback, kit, false);
   return { system: READER_SYSTEM, user };
 }
 
