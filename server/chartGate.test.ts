@@ -70,6 +70,12 @@ test("body-in-sign flags only a placement the chart really has", () => {
   assert.deepEqual(flagChartBodies("Saturn in Capricorn holds it.", overlay, devil), []);
 });
 
+test("body-in-sign matches whatever the casing", () => {
+  assert.deepEqual(flagChartBodies("mercury in Aquarius speaks.", overlay, devil), ["mercury in Aquarius"]);
+  assert.deepEqual(flagChartBodies("Mercury in aquarius speaks.", overlay, devil), ["Mercury in aquarius"]);
+  assert.deepEqual(flagChartBodies("saturn in capricorn holds it.", overlay, devil), []);
+});
+
 test("the querent's angles are not available to a card", () => {
   assert.deepEqual(flagChartBodies("Your Ascendant colors this.", overlay, []), ["Your Ascendant"]);
   assert.deepEqual(flagChartBodies("Your rising dread is the point.", overlay, []), []);
