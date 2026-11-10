@@ -1,5 +1,7 @@
 // server/prompts.ts — pure prompt builders. Each returns { system, user }.
 
+import { DOSSIER_VERSION, renderDossier, type Arcana, type Dossier, type DossierText } from "./dossier.ts";
+
 const ORACLE_SYSTEM =
   "You are an enlightened Tarot Oracle guiding the querent with deep " +
   "compassion, mystic wisdom, and knowledge of esoteric correspondences. " +
@@ -7,39 +9,105 @@ const ORACLE_SYSTEM =
   "to enrich your interpretation. Do not invent astrological data beyond " +
   "what is provided.";
 
-export interface Prompt { system: string; user: string; }
+const ORACLE_SYSTEM_NO_CHART =
+  "You are an enlightened Tarot Oracle guiding the querent with deep compassion, mystic " +
+  "wisdom, and knowledge of esoteric correspondences. Synthesize from the card reads you are " +
+  "given. Do not bring in the querent's natal chart or the current sky.";
 
-export function buildDeepPrompt(
-  card: any, reading: any, graphContext: string, astro: string, mani = "", graphMeaning = "", persona = "",
-): Prompt {
-  // Prefer the decan-derived Archetype composition (graphMeaning) over the sparse
-  // client-side metadata, so the AI reads the same canonical meaning the UI shows.
-  const generalMeaning = (graphMeaning && graphMeaning.trim()) || card.card.generalMeaning;
-  // The card's Persona skill is appended to the system prompt (additive) so the
-  // model reads AS that card. Never replaces the base Oracle system prompt.
-  const system = persona && persona.trim()
-    ? `${ORACLE_SYSTEM}\n\n--- PERSONA (embody this card while interpreting) ---\n${persona.trim()}`
-    : ORACLE_SYSTEM;
-  const user = `
+/** With `gate`, a reasoning run reads the opening ranks before the tools open. */
+export interface Prompt { system: string; user: string; gate?: { opening: string; remainder: string } }
+/** Who speaks: set by the kit, separate from what the dossier says. `company` is the chart gate's slice. */
+export interface CardKit { mani?: string; persona?: string; company?: string }
+
+/** The seven-card atomic spread keeps its ruled transit source; every other Oracle reads the cards. */
+export function isAtomicSpread(reading: any): boolean {
+  return /atomic/i.test(String(reading?.type ?? "")) && reading?.drawnCards?.length === 7;
+}
+
+const READER_SYSTEM =
+  "You read one tarot card drawn in a reading. Its dossier is derived structure, listed in " +
+  "rank order, and rank is authority: build the interpretation from the top down, let lower " +
+  "ranks color it, and treat traditional meaning as the last word, never the first. Interpret " +
+  "only what the dossier and the reading give you. Where the dossier is silent, be silent: " +
+  "supply no correspondence, placement or transit of your own. This card does not consult the " +
+  "querent's natal chart or the current sky, apart from a Home line the dossier itself carries " +
+  "and any company listed as standing in this card's own decans. " +
+  "Speak to the querent's question in plain prose; do not recite the dossier or its ranks.";
+
+const MINOR_CHARGE =
+  "This is a Minor: one decan, one event. The sentence is the reading: say what happens when " +
+  "this Traveler's mind prays at this shrine in this temple, and how the Home relays it. The " +
+  "DNA is the company it keeps. The walk places the self: read a step only by the floor it " +
+  "leaves and the floor it reaches, and do not name a landing or a step, since neither is " +
+  "ruled. The dodecatemoria are the energies the shrine is built from. Cognitive functions " +
+  "belong to the Majestic: assign none here.";
+
+const MAJESTIC_CHARGE =
+  "This is a Majestic: a person on the wheel, not a place. Speak from the role and its " +
+  "voice, and let the cognition say how this person meets the question. The stack is cited, " +
+  "never derived from the decans. The decans are stations in this person's story, Operator, " +
+  "Substance and Result. Where an Ace has two forms, read the one the question calls for.";
+
+const MAJOR_CHARGE =
+  "This is a Major: a station, a committee of decans. The response is their common thread: " +
+  "find what these decans share, and do not list them. Hold both layers, since neither " +
+  "outranks the other. The number's grammar and the Tree say how this station stands in the " +
+  "sequence; weigh a number by its stated status.";
+
+/** The ranks read before repo-reason may be used. */
+const GATE_RANK = 3;
+
+const CHARGES: Record<Arcana, string> = { Minor: MINOR_CHARGE, Majestic: MAJESTIC_CHARGE, Major: MAJOR_CHARGE };
+
+/** The shared frame. What differs by arcana is the charge and the dossier's ranks. */
+function arcanaPrompt(card: any, reading: any, dossier: Dossier, kit: CardKit, known = true): Prompt {
+  const base = `${READER_SYSTEM}\n\n${CHARGES[dossier.arcana]}`;
+  const persona = kit.persona?.trim();
+  const system = persona
+    ? `${base}\n\n--- PERSONA (embody this card while interpreting) ---\n${persona}`
+    : base;
+  const specific = (card.specificMeaning || "").trim();
+  const header = `
 Provide a "Deep Interpretation" for the following card drawn in a reading.
 
 **Querent:** ${reading.querent}
 **Question:** ${reading.question}
 **Position in Spread:** ${card.position.name} - ${card.position.description}
-
-**Card:** ${card.card.name} (Suit: ${card.card.suit || "N/A"}, Arcana: ${card.card.arcana})
+**Card:** ${known ? `${dossier.card} (${dossier.arcana})` : dossier.card}
 **Orientation:** ${card.isReversed ? "Reversed" : "Upright"}
-**General Meaning:** ${generalMeaning}
-**Specific Interpretation in Spread:** ${card.specificMeaning}
+${specific ? `**Reader's note for this position:** ${specific}\n` : ""}`;
+  const after = `${kit.company || ""}${maniSection(kit.mani || "")}`;
+  const ask = "Synthesize a profound, nuanced, unique interpretation. ~3-4 paragraphs.";
+  const user = `${header}
+**The card's dossier, in rank order:**
 
-**Esoteric Repository Correspondences:**
-${graphContext}
+${renderDossier(dossier)}
+${after}
+${ask}`;
+  const rest = dossier.sections.filter((s) => s.rank > GATE_RANK);
+  const opening = `${header}
+**The card's dossier, ranks 1 to ${GATE_RANK}:**
 
-**Astrological Context (this card):**
-${astro}
-${maniSection(mani)}
-Synthesize a profound, nuanced, unique interpretation. ~3-4 paragraphs.`;
-  return { system, user };
+${renderDossier({ ...dossier, sections: dossier.sections.filter((s) => s.rank <= GATE_RANK) })}
+
+Read these first and note briefly what they establish. Do not write the interpretation yet.`;
+  const remainder = `${rest.length ? `**The rest of the dossier, in rank order:**\n\n${renderDossier({ ...dossier, sections: rest })}\n` : ""}${after}
+The reasoning tools are open now. Make at least one call before you write.
+
+${ask}`;
+  return { system, user, gate: { opening, remainder } };
+}
+
+/** Route a drawn card to its arcana's prompt. A name outside the 78 has no structure to read,
+ *  so it gets the plain reader with only the text it arrived with. */
+export function buildDeepPrompt(card: any, reading: any, dossier: Dossier | null, kit: CardKit = {}, text: DossierText = {}): Prompt {
+  if (dossier) return arcanaPrompt(card, reading, dossier, kit);
+  const fallback: Dossier = {
+    version: DOSSIER_VERSION, card: card.card.name, arcana: "Minor",
+    sections: [{ rank: 1, title: "Meaning", source: "as given", lines: [text.traditional || card.card.generalMeaning || ""] }],
+  };
+  const { user } = arcanaPrompt(card, reading, fallback, kit, false);
+  return { system: READER_SYSTEM, user };
 }
 
 /** Optional Mani cognitive-stack perspective, injected only when present. */
@@ -88,11 +156,9 @@ ${cardsList}
 **Reader's Summary/Notes:**
 ${reading.summary}
 
-**Querent's Astrological Context:**
-${astro}
-${maniSection(mani)}
+${astro ? `**Querent's Astrological Context:**\n${astro}\n` : ""}${maniSection(mani)}
 Provide a coherent narrative. 2-3 paragraphs.`;
-  return { system: ORACLE_SYSTEM, user };
+  return { system: astro ? ORACLE_SYSTEM : ORACLE_SYSTEM_NO_CHART, user };
 }
 
 /** Prompt to summarize a single card's Deep interpretation independently — a

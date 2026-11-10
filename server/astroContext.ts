@@ -1,6 +1,8 @@
 // server/astroContext.ts — birth/observer config, Kairos fetch, caching, composition.
 import { summarizeNatal, summarizeTransit, extractNatalPositions, summarizeChartLean } from "./astroFormat.ts";
 import { buildCardPlacementIndex, resolveCardFocus, type PlacementRef } from "./cardChart.ts";
+import type { RisingPoint } from "./dossier.ts";
+import { SIGNS } from "./dossierStructure.ts";
 
 export interface KairosFetcher {
   natalFull(body: any): Promise<any>;
@@ -147,6 +149,26 @@ async function getOverlay(f: KairosFetcher, today: string): Promise<any | null> 
     console.error("[astroContext] card-context overlay fetch failed:", err);
     return null;
   }
+}
+
+/** The cached natal and transit overlay, which the chart gate reads for a card's own decans. */
+export async function getChartOverlay(
+  f: KairosFetcher = defaultKairosFetcher(),
+  today: string = new Date().toISOString().slice(0, 10),
+): Promise<any | null> {
+  return getOverlay(f, today);
+}
+
+/** The querent's rising, the one chart fact every minor may read, for its Home lord. */
+export async function getRisingPoint(
+  f: KairosFetcher = defaultKairosFetcher(),
+  today: string = new Date().toISOString().slice(0, 10),
+): Promise<RisingPoint | null> {
+  const natal = (await getOverlay(f, today))?.natal;
+  const sign = SIGNS.indexOf(natal?.houses?.whole_sign?.[0]?.sign);
+  if (sign < 0) return null;
+  const asc = natal?._raw?.houses?.placidus?.[0];
+  return { sign, decan: typeof asc === "number" ? Math.floor(asc / 10) : null };
 }
 
 export async function getCardContext(

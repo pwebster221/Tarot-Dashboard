@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { getAstroContext, getCardContext, _resetCaches, type KairosFetcher } from "./astroContext.ts";
+import { getAstroContext, getCardContext, getRisingPoint, _resetCaches, type KairosFetcher } from "./astroContext.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const overlay = JSON.parse(
@@ -23,9 +23,9 @@ beforeEach(() => {
   _resetCaches();
   process.env.BIRTH_NAME = "Paul Webster";
   process.env.BIRTH_DATE = "1989-01-06";
-  process.env.BIRTH_TIME = "15:10";
-  process.env.BIRTH_LATITUDE = "40.7128";
-  process.env.BIRTH_LONGITUDE = "-74.0060";
+  process.env.BIRTH_TIME = "15:06";
+  process.env.BIRTH_LATITUDE = "35.9956";
+  process.env.BIRTH_LONGITUDE = "-78.9002";
   process.env.BIRTH_TZ_OFFSET = "-5.0";
   process.env.CURRENT_LATITUDE = "40.7128";
   process.env.CURRENT_LONGITUDE = "-74.0060";
@@ -98,4 +98,19 @@ test(".env.example matches the Kairos contract in code", () => {
   assert.match(example, /^KAIROS_BASE=http:\/\/10\.20\.0\.215:8060$/m);
   assert.match(example, /^KAIROS_API_TOKEN=$/m);
   assert.doesNotMatch(example, /raw-charts/);
+});
+
+test("getRisingPoint reads the whole-sign rising and the ascendant's decan", async () => {
+  const { f } = makeFetcher();
+  const point = await getRisingPoint(f, "2026-11-07");
+  assert.equal(point?.sign, 2);                     // Gemini
+  assert.equal(point?.decan, 7);                    // 77.89 degrees, the ascendant's own decan
+});
+
+test("getRisingPoint is null when Kairos is down, so a minor reads without a Home", async () => {
+  const f: KairosFetcher = {
+    async natalFull() { throw new Error("down"); },
+    async transitFull() { throw new Error("down"); },
+  };
+  assert.equal(await getRisingPoint(f, "2026-11-07"), null);
 });

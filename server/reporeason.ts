@@ -19,6 +19,11 @@ const REPLAYABLE_TOOLS = new Set(["reason_exploration", "reason_identify_symbols
 // reason_verify matches each citation's ref exactly against the stored frame, and a claim
 // without citations is ungrounded, so the hint says to copy refs verbatim. The frame is
 // model-facing by Paul's ruling: it informs the reasoning and is never its subject.
+export const GATED_REASONING_NOTE =
+  "\n\nThe reporeason tools open only after you have read the first three ranks. Once they " +
+  "open, make at least one call before you write. The reading stands on the dossier: the frame " +
+  "adds insight and is not its ground.";
+
 export const REASONING_HINT =
   "\n\nYou may use the reporeason tools to ground this reading. The engine stores and " +
   "checks; YOU interpret, and it never interprets for you. reason_identify_symbols(text) " +
