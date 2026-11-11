@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, isAtomicSpread, readingMoment } from "./prompts.ts";
+import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, isAtomicSpread, oracleSky, readingMoment } from "./prompts.ts";
 import { buildDossier, type RisingPoint } from "./dossier.ts";
 
 const card = {
@@ -140,9 +140,29 @@ test("only the Seven Card New Moon Planetary Spread keeps the chart for the Orac
   assert.equal(isAtomicSpread({ type: "Atomic Seven", drawnCards: seven }), false);
 });
 
+test("the Oracle's system prompt does not say whose sky the transits are", () => {
+  // The trend Oracle shares it and gets today's sky; the block's own label says which sky it is.
+  const t = buildTrendPrompt([], "TODAY'S SKY", "");
+  assert.doesNotMatch(t.system, /for the reading|daily transits/);
+  assert.match(t.system, /labelled with the moment/);
+});
+
+test("an undated atomic reading gets a stated gap, never today's sky", () => {
+  const seven = Array(7).fill({});
+  const atomic = { type: "seven_card_new_moon_planetary_spread", drawnCards: seven };
+  assert.deepEqual(oracleSky({ ...atomic, date: "2026-10-21" }), { kind: "at", at: "2026-10-21T12:00:00.000Z" });
+  const gap = oracleSky({ ...atomic, date: "21/10/2026" });
+  assert.equal(gap.kind, "undated");
+  assert.match((gap as any).note, /Do not substitute today's sky/);
+  assert.deepEqual(oracleSky({ type: "three_card", drawnCards: [{}, {}, {}], date: "2026-10-21" }), { kind: "none" });
+});
+
 test("the reading's own moment sets the sky, not today", () => {
   assert.equal(readingMoment({ date: "2026-10-21T23:15:00.000Z" }), "2026-10-21T23:15:00.000Z");
   assert.equal(readingMoment({ date: "2026-10-21" }), "2026-10-21T12:00:00.000Z");
+  // A timestamp with no zone is read as UTC, whatever zone the server runs in.
+  assert.equal(readingMoment({ date: "2026-10-21T18:30:00" }), "2026-10-21T18:30:00.000Z");
+  assert.equal(readingMoment({ date: "2026-10-21 18:30:00" }), "2026-10-21T18:30:00.000Z");
   assert.equal(readingMoment({ date: "not a date" }), undefined);
   assert.equal(readingMoment({}), undefined);
 });

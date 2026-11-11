@@ -70,6 +70,17 @@ test("today's sky and a reading's sky are cached apart", async () => {
   assert.equal(calls.transit, 2);
   const now = await getAstroContext(f, "2026-11-11");
   assert.match(now, /TODAY'S SKY/);
+  assert.equal(calls.transit, 2);   // today's entry survived the reading's fetch
+});
+
+test("a reading's sky that fails names the reading, not today", async () => {
+  const f: KairosFetcher = {
+    async natalFull() { return overlay.natal; },
+    async transitFull() { throw new Error("422"); },
+  };
+  const text = await getAstroContext(f, "2026-11-11", "2026-10-21T12:00:00.000Z");
+  assert.match(text, /Sky at the reading \(2026-10-21T12:00:00\.000Z\) unavailable/);
+  assert.doesNotMatch(text, /Today's/);
 });
 
 test("getAstroContext degrades when a fetcher throws", async () => {

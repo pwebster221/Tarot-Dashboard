@@ -5,7 +5,7 @@ import { DOSSIER_VERSION, renderDossier, type Arcana, type Dossier, type Dossier
 const ORACLE_SYSTEM =
   "You are an enlightened Tarot Oracle guiding the querent with deep " +
   "compassion, mystic wisdom, and knowledge of esoteric correspondences. " +
-  "Use the provided natal chart, the transits given for the reading, and graph correspondences " +
+  "Use the provided natal chart, the transits (each block labelled with the moment it shows), and graph correspondences " +
   "to enrich your interpretation. Do not invent astrological data beyond " +
   "what is provided.";
 
@@ -30,11 +30,25 @@ export function isAtomicSpread(reading: any): boolean {
   return reading?.type === ATOMIC_SPREAD_TYPE && reading?.drawnCards?.length === 7;
 }
 
-/** The moment whose sky the reading was cast under. A date with no time is read at noon UTC. */
+/** What sky the reading Oracle gets: none, the reading's own moment, or a stated gap. Never today's. */
+export type OracleSky = { kind: "none" } | { kind: "at"; at: string } | { kind: "undated"; note: string };
+export const UNDATED_SKY_NOTE =
+  "The reading has no usable date, so the sky at the reading is unavailable. Do not substitute today's sky.";
+export function oracleSky(reading: any): OracleSky {
+  if (!isAtomicSpread(reading)) return { kind: "none" };
+  const at = readingMoment(reading);
+  return at ? { kind: "at", at } : { kind: "undated", note: UNDATED_SKY_NOTE };
+}
+
+/** The moment whose sky the reading was cast under, or undefined when its date is missing or unreadable. */
 export function readingMoment(reading: any): string | undefined {
   const raw = String(reading?.date ?? "").trim();
   if (!raw) return undefined;
-  const at = new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00Z` : raw);
+  // A bare date is read at noon UTC; a timestamp with no zone is read as UTC, not server-local.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00Z`
+    : /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(raw) ? `${raw.replace(" ", "T")}Z`
+    : raw;
+  const at = new Date(iso);
   return Number.isNaN(at.getTime()) ? undefined : at.toISOString();
 }
 
