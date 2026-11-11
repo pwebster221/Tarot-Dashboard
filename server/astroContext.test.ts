@@ -49,6 +49,29 @@ test("natal cached forever; transit cached per day", async () => {
   assert.equal(calls.transit, 2);
 });
 
+test("a reading's moment sends that time to Kairos and labels the sky as the reading's", async () => {
+  const bodies: any[] = [];
+  const f: KairosFetcher = {
+    async natalFull() { return overlay.natal; },
+    async transitFull(body) { bodies.push(body); return overlay; },
+  };
+  const at = "2026-10-21T12:00:00.000Z";
+  const text = await getAstroContext(f, "2026-11-11", at);
+  assert.equal(bodies[0].target_datetime, at);
+  assert.match(text, /SKY AT THE READING \(2026-10-21T12:00:00\.000Z\)/);
+  assert.doesNotMatch(text, /TODAY'S SKY/);
+});
+
+test("today's sky and a reading's sky are cached apart", async () => {
+  const { f, calls } = makeFetcher();
+  await getAstroContext(f, "2026-11-11");
+  await getAstroContext(f, "2026-11-11", "2026-10-21T12:00:00.000Z");
+  await getAstroContext(f, "2026-11-11", "2026-10-21T12:00:00.000Z");
+  assert.equal(calls.transit, 2);
+  const now = await getAstroContext(f, "2026-11-11");
+  assert.match(now, /TODAY'S SKY/);
+});
+
 test("getAstroContext degrades when a fetcher throws", async () => {
   const f: KairosFetcher = {
     async natalFull() { throw new Error("down"); },

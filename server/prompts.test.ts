@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, isAtomicSpread } from "./prompts.ts";
+import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, isAtomicSpread, readingMoment } from "./prompts.ts";
 import { buildDossier, type RisingPoint } from "./dossier.ts";
 
 const card = {
@@ -131,11 +131,20 @@ test("the Oracle with no chart gets no astrology section and is told not to brin
   assert.match(p.system, /Do not bring in the querent's natal chart/);
 });
 
-test("only a seven-card atomic spread keeps the chart for the Oracle", () => {
+test("only the Seven Card New Moon Planetary Spread keeps the chart for the Oracle", () => {
   const seven = Array(7).fill({});
-  assert.equal(isAtomicSpread({ type: "Atomic Seven", drawnCards: seven }), true);
-  assert.equal(isAtomicSpread({ type: "Atomic Seven", drawnCards: [{}] }), false);
-  assert.equal(isAtomicSpread({ type: "Celtic Cross", drawnCards: seven }), false);
+  assert.equal(isAtomicSpread({ type: "seven_card_new_moon_planetary_spread", drawnCards: seven }), true);
+  assert.equal(isAtomicSpread({ type: "seven_card_new_moon_planetary_spread", drawnCards: [{}] }), false);
+  // The other seven-card spread, and a name that merely says "atomic", do not qualify.
+  assert.equal(isAtomicSpread({ type: "progression_cycle", drawnCards: seven }), false);
+  assert.equal(isAtomicSpread({ type: "Atomic Seven", drawnCards: seven }), false);
+});
+
+test("the reading's own moment sets the sky, not today", () => {
+  assert.equal(readingMoment({ date: "2026-10-21T23:15:00.000Z" }), "2026-10-21T23:15:00.000Z");
+  assert.equal(readingMoment({ date: "2026-10-21" }), "2026-10-21T12:00:00.000Z");
+  assert.equal(readingMoment({ date: "not a date" }), undefined);
+  assert.equal(readingMoment({}), undefined);
 });
 
 test("a card outside the 78 is not labeled with an arcana", () => {

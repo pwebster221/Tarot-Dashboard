@@ -5,7 +5,7 @@ import { DOSSIER_VERSION, renderDossier, type Arcana, type Dossier, type Dossier
 const ORACLE_SYSTEM =
   "You are an enlightened Tarot Oracle guiding the querent with deep " +
   "compassion, mystic wisdom, and knowledge of esoteric correspondences. " +
-  "Use the provided natal chart, daily transits, and graph correspondences " +
+  "Use the provided natal chart, the transits given for the reading, and graph correspondences " +
   "to enrich your interpretation. Do not invent astrological data beyond " +
   "what is provided.";
 
@@ -19,9 +19,23 @@ export interface Prompt { system: string; user: string; gate?: { opening: string
 /** Who speaks: set by the kit, separate from what the dossier says. `company` is the chart gate's slice. */
 export interface CardKit { mani?: string; persona?: string; company?: string }
 
-/** The seven-card atomic spread keeps its ruled transit source; every other Oracle reads the cards. */
+/**
+ * The seven-card atomic spread (Canon: planets in reversed Chaldean order, each letter read from
+ * the transit chart) keeps its ruled transit source; every other Oracle reads the cards. Matched
+ * by its stored id, which renaming the spread does not change. Shown as "Seven Card Atomic
+ * Planetary Spread" since 2026-11-11.
+ */
+export const ATOMIC_SPREAD_TYPE = "seven_card_new_moon_planetary_spread";
 export function isAtomicSpread(reading: any): boolean {
-  return /atomic/i.test(String(reading?.type ?? "")) && reading?.drawnCards?.length === 7;
+  return reading?.type === ATOMIC_SPREAD_TYPE && reading?.drawnCards?.length === 7;
+}
+
+/** The moment whose sky the reading was cast under. A date with no time is read at noon UTC. */
+export function readingMoment(reading: any): string | undefined {
+  const raw = String(reading?.date ?? "").trim();
+  if (!raw) return undefined;
+  const at = new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00Z` : raw);
+  return Number.isNaN(at.getTime()) ? undefined : at.toISOString();
 }
 
 const READER_SYSTEM =

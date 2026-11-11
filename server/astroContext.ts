@@ -107,8 +107,11 @@ async function transitSummary(
   f: KairosFetcher,
   today: string,
   natalPositions: Record<string, number>,
+  at?: string,
 ): Promise<string> {
-  if (_transitCache && _transitCache.date === today) return _transitCache.text;
+  // A reading's own moment is its own cache entry, never mixed with today's sky.
+  const key = at ? `at:${at}` : today;
+  if (_transitCache && _transitCache.date === key) return _transitCache.text;
   try {
     const obs = observer();
     const data = await f.transitFull({
@@ -116,9 +119,11 @@ async function transitSummary(
       anonymous: true,
       observer_latitude: obs.lat,
       observer_longitude: obs.lon,
+      ...(at ? { target_datetime: at } : {}),
     });
-    const text = summarizeTransit(data, natalPositions);
-    _transitCache = { date: today, text };
+    let text = summarizeTransit(data, natalPositions);
+    if (at) text = text.replace("TODAY'S SKY", `SKY AT THE READING (${at})`);
+    _transitCache = { date: key, text };
     return text;
   } catch (err) {
     console.error("[astroContext] transit fetch failed:", err);
@@ -129,10 +134,11 @@ async function transitSummary(
 export async function getAstroContext(
   f: KairosFetcher = defaultKairosFetcher(),
   today: string = new Date().toISOString().slice(0, 10),
+  at?: string,   // a reading's moment; omitted means today's sky
 ): Promise<string> {
   // Natal resolves first: its positions feed the transit-to-natal aspect math.
   const natal = await natalSummary(f);
-  const transit = await transitSummary(f, today, natal.positions);
+  const transit = await transitSummary(f, today, natal.positions, at);
   return `${natal.text}\n\n${transit}`;
 }
 

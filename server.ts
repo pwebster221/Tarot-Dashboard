@@ -9,7 +9,7 @@ import multer from "multer";
 import { callFable } from "./server/llm.ts";
 import { getAstroContext, getChartOverlay, getRisingPoint } from "./server/astroContext.ts";
 import { enforceChartGate, flagChartBodies, occupantsOf, renderCompany, rewriteRequest } from "./server/chartGate.ts";
-import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt, isAtomicSpread } from "./server/prompts.ts";
+import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt, isAtomicSpread, readingMoment } from "./server/prompts.ts";
 import { buildDossier, DOSSIER_VERSION } from "./server/dossier.ts";
 import { getPersonaForCard } from "./server/persona.ts";
 import { runGroundedAgent, type ReadGate } from "./server/agent.ts";
@@ -309,8 +309,9 @@ async function startServer() {
     try {
       const { reading } = req.body;
       const wantReasoning = req.body.extraReasoning === true;
-      // The Oracle reads the card reads. Only the seven-card atomic spread keeps its transit source.
-      const astro = isAtomicSpread(reading) ? await getAstroContext() : "";
+      // The Oracle reads the card reads. Only the seven-card atomic spread keeps its transit source,
+      // and that source is the sky at the reading's own moment, not today's.
+      const astro = isAtomicSpread(reading) ? await getAstroContext(undefined, undefined, readingMoment(reading)) : "";
       let mani = "";
       if (maniReady()) {
         const q = `Whole-reading Oracle synthesis. Question: ${reading?.question || "(none)"}. `
