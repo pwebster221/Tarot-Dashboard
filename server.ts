@@ -9,7 +9,7 @@ import multer from "multer";
 import { callFable } from "./server/llm.ts";
 import { getAstroContext, getChartOverlay, getRisingPoint } from "./server/astroContext.ts";
 import { enforceChartGate, flagChartBodies, occupantsOf, renderCompany, rewriteRequest } from "./server/chartGate.ts";
-import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt, isAtomicSpread } from "./server/prompts.ts";
+import { buildDeepPrompt, buildOraclePrompt, buildTrendPrompt, buildSummaryPrompt, oracleSky } from "./server/prompts.ts";
 import { buildDossier, DOSSIER_VERSION } from "./server/dossier.ts";
 import { getPersonaForCard } from "./server/persona.ts";
 import { runGroundedAgent, type ReadGate } from "./server/agent.ts";
@@ -309,8 +309,12 @@ async function startServer() {
     try {
       const { reading } = req.body;
       const wantReasoning = req.body.extraReasoning === true;
-      // The Oracle reads the card reads. Only the seven-card atomic spread keeps its transit source.
-      const astro = isAtomicSpread(reading) ? await getAstroContext() : "";
+      // The Oracle reads the card reads. Only the seven-card atomic spread keeps its transit source,
+      // and that source is the sky at the reading's own moment, not today's.
+      const sky = oracleSky(reading);
+      if (sky.kind === "undated") console.warn(`[oracle] atomic reading ${reading?.id ?? "?"} has no usable date: ${JSON.stringify(reading?.date)}`);
+      const astro = sky.kind === "at" ? await getAstroContext(undefined, undefined, sky.at)
+        : sky.kind === "undated" ? sky.note : "";
       let mani = "";
       if (maniReady()) {
         const q = `Whole-reading Oracle synthesis. Question: ${reading?.question || "(none)"}. `

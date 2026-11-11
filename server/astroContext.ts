@@ -1,5 +1,5 @@
 // server/astroContext.ts — birth/observer config, Kairos fetch, caching, composition.
-import { summarizeNatal, summarizeTransit, extractNatalPositions, summarizeChartLean } from "./astroFormat.ts";
+import { summarizeNatal, summarizeTransit, extractNatalPositions, summarizeChartLean, skyLabel } from "./astroFormat.ts";
 import { buildCardPlacementIndex, resolveCardFocus, type PlacementRef } from "./cardChart.ts";
 import type { RisingPoint } from "./dossier.ts";
 import { SIGNS } from "./dossierStructure.ts";
@@ -10,7 +10,9 @@ export interface KairosFetcher {
 }
 
 let _natalCache: { text: string; positions: Record<string, number> } | null = null;
-let _transitCache: { date: string; text: string } | null = null;
+/** Today's sky and each reading's sky, by key, so one never evicts another. */
+const _transitCache = new Map<string, string>();
+const TRANSIT_CACHE_MAX = 32;
 let _overlayCache: { date: string; data: any } | null = null;
 let _indexCache: Record<string, PlacementRef[]> | null = null;
 let _leanCache: { date: string; text: string } | null = null;
@@ -18,7 +20,7 @@ let _leanCache: { date: string; text: string } | null = null;
 /** Test helper: clear in-memory caches. */
 export function _resetCaches(): void {
   _natalCache = null;
-  _transitCache = null;
+  _transitCache.clear();
   _overlayCache = null;
   _indexCache = null;
   _leanCache = null;
@@ -107,8 +109,12 @@ async function transitSummary(
   f: KairosFetcher,
   today: string,
   natalPositions: Record<string, number>,
+  at?: string,
 ): Promise<string> {
-  if (_transitCache && _transitCache.date === today) return _transitCache.text;
+  // A reading's own moment is its own cache entry, never mixed with today's sky.
+  const key = at ? `at:${at}` : today;
+  const hit = _transitCache.get(key);
+  if (hit !== undefined) return hit;
   try {
     const obs = observer();
     const data = await f.transitFull({
@@ -116,23 +122,26 @@ async function transitSummary(
       anonymous: true,
       observer_latitude: obs.lat,
       observer_longitude: obs.lon,
+      ...(at ? { target_datetime: at } : {}),
     });
-    const text = summarizeTransit(data, natalPositions);
-    _transitCache = { date: today, text };
+    const text = summarizeTransit(data, natalPositions, at);
+    if (_transitCache.size >= TRANSIT_CACHE_MAX) _transitCache.delete(_transitCache.keys().next().value!);
+    _transitCache.set(key, text);
     return text;
   } catch (err) {
     console.error("[astroContext] transit fetch failed:", err);
-    return "Today's transit data unavailable.";
+    return skyLabel(at).missing;
   }
 }
 
 export async function getAstroContext(
   f: KairosFetcher = defaultKairosFetcher(),
   today: string = new Date().toISOString().slice(0, 10),
+  at?: string,   // a reading's moment; omitted means today's sky
 ): Promise<string> {
   // Natal resolves first: its positions feed the transit-to-natal aspect math.
   const natal = await natalSummary(f);
-  const transit = await transitSummary(f, today, natal.positions);
+  const transit = await transitSummary(f, today, natal.positions, at);
   return `${natal.text}\n\n${transit}`;
 }
 

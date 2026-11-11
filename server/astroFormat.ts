@@ -112,13 +112,22 @@ export function summarizeChartLean(natal: any, overlay: any): string {
   return note ? `${head}\n${note}` : head;
 }
 
+/** Which sky a transit block shows: today's by default, or a reading's own moment. */
+export function skyLabel(at?: string): { head: string; missing: string } {
+  return at
+    ? { head: `SKY AT THE READING (${at}) (mundane transits):`, missing: `Sky at the reading (${at}) unavailable.` }
+    : { head: "TODAY'S SKY (mundane transits):", missing: "Today's transit data unavailable." };
+}
+
 export function summarizeTransit(
   overlay: any,
   natalPositions: Record<string, number> = {},
+  at?: string,
 ): string {
+  const label = skyLabel(at);
   const planets = overlay?.transit?.planets;
   if (!planets || typeof planets !== "object" || Object.keys(planets).length === 0) {
-    return "Today's transit data unavailable.";
+    return label.missing;
   }
 
   const positions: string[] = [];
@@ -131,7 +140,7 @@ export function summarizeTransit(
   }
 
   const out: string[] = [
-    "TODAY'S SKY (mundane transits):",
+    label.head,
     positions.join(", ") + ".",
   ];
   if (retro.length) out.push(`Retrograde: ${retro.join(", ")}.`);
