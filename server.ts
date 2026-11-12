@@ -352,11 +352,13 @@ async function startServer() {
       // Fold each distinct spread's authored detail into the trend synthesis.
       const spreadTypes = [...new Set((readings || []).map((r: any) => r?.type).filter(Boolean))];
       const details: string[] = [];
+      const spreadNames: Record<string, string> = {};
       for (const t of spreadTypes) {
         const sd = await getSpreadDescription(t as string);
+        if (sd?.name) spreadNames[t as string] = sd.name;
         if (sd?.description) details.push(`${sd.name || t}: ${sd.description}`);
       }
-      const { system, user } = buildTrendPrompt(readings, astro, mani, details.join("\n\n"));
+      const { system, user } = buildTrendPrompt(readings, astro, mani, details.join("\n\n"), spreadNames);
       const { text } = await interpret(system, user, wantReasoning);
       res.json({ result: text });
     } catch (err: any) {

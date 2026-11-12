@@ -202,10 +202,20 @@ export function buildSummaryPrompt(cardName: string, position: string, interpret
   return { system, user };
 }
 
-export function buildTrendPrompt(readings: any[], astro: string, mani = "", spreadDetails = ""): Prompt {
-  const readingsText = readings
-    .map((r: any) => `Date: ${r.date}, Question: ${r.question}, Cards: ${r.drawnCards.map((c: any) => c.card.name).join(", ")}`)
-    .join("\n");
+/** One reading for the trend Oracle: its spread by display name, then each card in its position. */
+function trendReading(r: any, spreadNames: Record<string, string>): string {
+  const spread = spreadNames[r?.type] || r?.type || "unknown spread";
+  const cards = (r?.drawnCards || []).map((c: any) => {
+    const card = `${c?.card?.name} (${c?.isReversed ? "Reversed" : "Upright"})`;
+    return `    ${c?.position?.name ? `${c.position.name}: ` : ""}${card}`;
+  });
+  return [`- Date: ${r?.date}, Spread: ${spread}, Question: ${r?.question}`, ...cards].join("\n");
+}
+
+export function buildTrendPrompt(
+  readings: any[], astro: string, mani = "", spreadDetails = "", spreadNames: Record<string, string> = {},
+): Prompt {
+  const readingsText = readings.map((r: any) => trendReading(r, spreadNames)).join("\n");
   const user = `
 Analyze these readings collectively and provide an Oracle insight about
 overarching themes or major trends.
