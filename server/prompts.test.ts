@@ -174,3 +174,23 @@ test("a card outside the 78 is not labeled with an arcana", () => {
   assert.doesNotMatch(p.user, /\(Minor\)/);
   assert.equal(p.gate, undefined);
 });
+
+test("the trend Oracle sees each reading's spread and every card in its position", () => {
+  const atomic = {
+    date: "2026-10-21", question: "Where am I?", type: "seven_card_new_moon_planetary_spread",
+    drawnCards: [
+      { position: { name: "Moon" }, card: { name: "The Star" }, isReversed: false },
+      { position: { name: "Mercury" }, card: { name: "Three of Swords" }, isReversed: true },
+    ],
+  };
+  const { user } = buildTrendPrompt([atomic], "SKY", "", "", {
+    seven_card_new_moon_planetary_spread: "Seven Card Atomic Planetary Spread",
+  });
+  assert.match(user, /Spread: Seven Card Atomic Planetary Spread/);
+  assert.match(user, /Moon: The Star \(Upright\)/);
+  assert.match(user, /Mercury: Three of Swords \(Reversed\)/);
+  // A spread with no known name falls back to its stored id; a card with no position still reads.
+  const bare = buildTrendPrompt([{ date: "d", question: "q", type: "three_card", drawnCards: [{ card: { name: "The Fool" } }] }], "SKY").user;
+  assert.match(bare, /Spread: three_card/);
+  assert.match(bare, /The Fool \(Upright\)/);
+});
